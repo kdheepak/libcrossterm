@@ -31,8 +31,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: products/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish:
     name: Cargo
