@@ -867,7 +867,7 @@ pub unsafe extern "C" fn crossterm_terminal_set_title(title: *const libc::c_char
   r!()
 }
 
-/// A command that instructs the terminal emulator to being a synchronized frame.
+/// Instructs the terminal emulator to begin a synchronized frame.
 ///
 /// # Notes
 ///
@@ -889,7 +889,7 @@ pub extern "C" fn crossterm_terminal_begin_synchronized_update() -> libc::c_int 
   r!()
 }
 
-/// A command that instructs the terminal to end a synchronized frame.
+/// Instructs the terminal to end a synchronized frame.
 ///
 /// # Notes
 ///
