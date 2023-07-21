@@ -10,6 +10,7 @@ license = "MIT"
 
 [lib]
 crate-type = ["cdylib"]
+name = "crossterm"
 
 [dependencies]
 anyhow = "1.0.72"
