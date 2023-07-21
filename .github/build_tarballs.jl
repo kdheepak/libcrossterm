@@ -1,0 +1,59 @@
+# `julia build_tarballs.jl --help` to see a usage message.
+using BinaryBuilder, Pkg
+
+name = "libcrossterm"
+version = VersionNumber(strip(Pkg.TOML.parsefile(joinpath(@__DIR__, "../Cargo.toml"))["package"]["version"]))
+
+function get_commit_id()
+  event_file = get(ENV, "GITHUB_EVENT_PATH", "")
+  ref = "HEAD"
+  gaction = get(ENV, "GITHUB_ACTIONS", "")
+  if !isempty(gaction)
+    # .pull_request.head.sha, .release.tag_name,
+    ref = readlines(`jq --raw-output '.pull_request.head.sha' $event_file`)[1]
+    if ref == "null"
+      ref = readlines(`jq --raw-output '.release.tag_name' $event_file`)[1]
+    end
+  end
+
+  if ref == "null"
+    ref = "HEAD"
+  end
+  return readlines(`git rev-parse $ref`)[1]
+end
+
+sources = [
+  "https://github.com/kdheepak/libcrossterm.git" => get_commit_id()
+]
+
+script = raw"""
+cd $WORKSPACE/srcdir/libcrossterm/
+
+cargo build --release -j${nproc} --target=${rust_target}
+
+if [[ "${target}" == *-w64-mingw32* ]]; then
+    # Windows generates .dlls without the lib prefix
+    install -Dvm 0755 "target/${rust_target}/release/crossterm.${dlext}" "${libdir}/libcrossterm.${dlext}"
+else
+    install -Dvm 0755 "target/${rust_target}/release/libcrossterm.${dlext}" "${libdir}/libcrossterm.${dlext}"
+fi
+
+install -Dvm 0755 "include/crossterm.h" "${includedir}/crossterm.h"
+
+install_license LICENSE
+"""
+
+platforms = supported_platforms(; experimental=true)
+# `cdylib` apparently doesn't support musl
+filter!(p -> libc(p) != "musl", platforms)
+# Our Rust toolchain for i686 Windows is unusable
+filter!(p -> !Sys.iswindows(p) || arch(p) != "i686", platforms)
+
+products = [
+  LibraryProduct("libcrossterm", :libcrossterm),
+  FileProduct("include/crossterm.h", :crossterm_h),
+]
+
+dependencies = Dependency[]
+
+build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies; compilers=[:c, :rust], julia_compat="1.6")
