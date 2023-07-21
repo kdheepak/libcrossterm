@@ -1,5 +1,10 @@
 name: BinaryBuilder
-on: [push, create]
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v?[0-9]+.[0-9]+.[0-9]+*"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,25 +41,13 @@ jobs:
         with:
           name: artifacts
           path: products/
-
-  release:
-    name: Publishing to GitHub releases
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Publish tarball
+        if: startsWith(github.ref, 'refs/tags')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: products/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
 
   publish:
     name: Publishing to Cargo
