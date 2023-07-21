@@ -47,7 +47,7 @@ where
         RESULT.with(|r| {
           *r.borrow_mut() = -1;
         });
-        set_last_error(err.into());
+        set_last_error(err);
         T::default()
       },
     }
@@ -103,12 +103,7 @@ pub fn take_last_error() -> Option<anyhow::Error> {
 /// Check whether error has been set.
 #[no_mangle]
 pub extern "C" fn crossterm_has_error() -> bool {
-  LAST_ERROR.with(|prev| {
-    match *prev.borrow() {
-      Some(_) => true,
-      None => false,
-    }
-  })
+  LAST_ERROR.with(|prev| prev.borrow().is_some())
 }
 
 #[no_mangle]
@@ -141,8 +136,7 @@ pub extern "C" fn crossterm_last_error_length() -> libc::c_int {
 #[no_mangle]
 pub extern "C" fn crossterm_last_error_message() -> *const libc::c_char {
   let last_error = take_last_error()
-    .or(Some(anyhow::anyhow!("No error message found. Check library documentation for more information.")))
-    .unwrap();
+    .unwrap_or(anyhow::anyhow!("No error message found. Check library documentation for more information."));
   let string = format!("{:#}", last_error);
   convert_string_to_c_char(string)
 }
@@ -857,9 +851,16 @@ pub extern "C" fn crossterm_terminal_set_size(columns: u16, rows: u16) -> libc::
 
 /// Sets terminal title.
 ///
-/// This function borrows a slice to title and expects the user to clean up the allocated memory
+/// # Safety
+///
+/// This function takes a raw pointer as argument. As such, the caller must ensure that:
+/// - The `title` pointer points to a valid null-terminated string.
+/// - This function borrows a slice to a valid null-terminated string and the memory referenced by `title` won't be deallocated or modified for the duration of the function call..
+/// - The `title` pointer is correctly aligned and `title` points to an initialized memory.
+///
+/// If these conditions are not met, the behavior is undefined.
 #[no_mangle]
-pub extern "C" fn crossterm_terminal_set_title(title: *const libc::c_char) -> libc::c_int {
+pub unsafe extern "C" fn crossterm_terminal_set_title(title: *const libc::c_char) -> libc::c_int {
   let c_str: &std::ffi::CStr = unsafe { std::ffi::CStr::from_ptr(title) };
   let string = c_str.to_str().unwrap();
   execute!(std::io::stdout(), crossterm::terminal::SetTitle(string)).c_unwrap();
