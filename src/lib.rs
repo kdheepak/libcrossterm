@@ -40,6 +40,7 @@ where
         RESULT.with(|r| {
           *r.borrow_mut() = 0;
         });
+        take_last_error();
         t
       },
       Err(err) => {
@@ -99,6 +100,17 @@ pub fn take_last_error() -> Option<anyhow::Error> {
   LAST_ERROR.with(|prev| prev.borrow_mut().take())
 }
 
+/// Check whether error has been set.
+#[no_mangle]
+pub extern "C" fn crossterm_has_error() -> bool {
+  LAST_ERROR.with(|prev| {
+    match *prev.borrow() {
+      Some(_) => true,
+      None => false,
+    }
+  })
+}
+
 #[no_mangle]
 pub extern "C" fn crossterm_clear_last_error() {
   let _ = take_last_error();
@@ -145,56 +157,70 @@ pub extern "C" fn crossterm_free_c_char(s: *mut libc::c_char) -> libc::c_int {
   0
 }
 
+/// Checks if there is an [`Event`](enum.Event.html) available.
+///
+/// Returns `Ok(true)` if an [`Event`](enum.Event.html) is available otherwise it returns `Ok(false)`.
+///
+/// `Ok(true)` guarantees that subsequent call to the [`read`](fn.read.html) function
+/// won't block.
+///
+/// # Arguments
+///
+/// * `timeout_secs` - maximum waiting time for event availability
+/// * `timeout_nanos` - maximum waiting time for event availability
 #[no_mangle]
 pub extern "C" fn crossterm_event_poll(secs: u64, nanos: u32) -> libc::c_int {
-  crossterm::event::poll(std::time::Duration::new(secs, nanos)).c_unwrap().into()
+  let r = crossterm::event::poll(std::time::Duration::new(secs, nanos)).c_unwrap();
+  if crossterm_has_error() {
+    r!()
+  } else {
+    r.into()
+  }
 }
 
+/// Reads a single Event as a string.
+///
+/// This function blocks until an Event is available. Combine it with the
+/// [`crossterm_event_poll`] function to get non-blocking reads.
 /// Use [`crossterm_free_c_char`] to free data
 #[no_mangle]
 pub extern "C" fn crossterm_event_read() -> *const libc::c_char {
   let string = match crossterm::event::read() {
-    Ok(crossterm::event::Event::Key(key)) => {
-      format!("{:?}", key)
+    Ok(evt) => {
+      format!("{:?}", evt)
     },
-    Ok(crossterm::event::Event::Mouse(mouse)) => {
-      format!("{:?}", mouse)
-    },
-    Ok(crossterm::event::Event::Paste(s)) => {
-      format!("{:?}", s)
-    },
-    Ok(crossterm::event::Event::Resize(x, y)) => {
-      format!("{:?}", (x, y))
-    },
-    Ok(crossterm::event::Event::FocusLost) => {
-      format!("{:?}", "FocusLost")
-    },
-    Ok(crossterm::event::Event::FocusGained) => {
-      format!("{:?}", "FocusGained")
-    },
-    Err(e) => format!("Unknown event {:?}", e),
+    Err(e) => format!("{:?}", anyhow::anyhow!(e)),
   };
   convert_string_to_c_char(string)
 }
 
+/// Sleeps for `seconds` seconds
 #[no_mangle]
 pub extern "C" fn crossterm_sleep(seconds: f64) {
   let duration = std::time::Duration::from_nanos((seconds * 1e9).round() as u64);
   std::thread::sleep(duration);
 }
 
+/// CursorPosition struct
 #[repr(C)]
 pub struct CursorPosition {
   pub column: u16,
   pub row: u16,
 }
 
-/// Get cursor position
+/// Get cursor position (column, row)
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_position(pos: &mut CursorPosition) -> libc::c_int {
+pub extern "C" fn crossterm_get_cursor_position(pos: &mut CursorPosition) -> libc::c_int {
   let (column, row) = crossterm::cursor::position().c_unwrap();
   pos.column = column;
   pos.row = row;
+  r!()
+}
+
+/// Set cursor position (column, row)
+#[no_mangle]
+pub extern "C" fn crossterm_set_cursor_position(pos: CursorPosition) -> libc::c_int {
+  execute!(std::io::stdout(), crossterm::cursor::MoveTo(pos.column, pos.row)).c_unwrap();
   r!()
 }
 
@@ -310,6 +336,43 @@ pub extern "C" fn crossterm_cursor_disable_blinking() -> libc::c_int {
   r!()
 }
 
+/// Style of the cursor.
+/// It uses two types of escape codes, one to control blinking, and the other the shape.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum CursorStyle {
+  /// Default cursor shape configured by the user.
+  DefaultUserShape,
+  /// A blinking block cursor shape (■).
+  BlinkingBlock,
+  /// A non blinking block cursor shape (inverse of `BlinkingBlock`).
+  SteadyBlock,
+  /// A blinking underscore cursor shape(_).
+  BlinkingUnderScore,
+  /// A non blinking underscore cursor shape (inverse of `BlinkingUnderScore`).
+  SteadyUnderScore,
+  /// A blinking cursor bar shape (|)
+  BlinkingBar,
+  /// A steady cursor bar shape (inverse of `BlinkingBar`).
+  SteadyBar,
+}
+
+/// Sets the style of the cursor.
+#[no_mangle]
+pub extern "C" fn crossterm_cursor_set_style(cursor_style: CursorStyle) -> libc::c_int {
+  let cs = match cursor_style {
+    CursorStyle::DefaultUserShape => crossterm::cursor::SetCursorStyle::DefaultUserShape,
+    CursorStyle::BlinkingBlock => crossterm::cursor::SetCursorStyle::BlinkingBlock,
+    CursorStyle::SteadyBlock => crossterm::cursor::SetCursorStyle::SteadyBlock,
+    CursorStyle::BlinkingUnderScore => crossterm::cursor::SetCursorStyle::BlinkingUnderScore,
+    CursorStyle::SteadyUnderScore => crossterm::cursor::SetCursorStyle::SteadyUnderScore,
+    CursorStyle::BlinkingBar => crossterm::cursor::SetCursorStyle::BlinkingBar,
+    CursorStyle::SteadyBar => crossterm::cursor::SetCursorStyle::SteadyBar,
+  };
+  execute!(std::io::stdout(), cs).c_unwrap();
+  r!()
+}
+
 /// Sets the style of the cursor to default user shape.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_set_style_default_user_shape() -> libc::c_int {
@@ -359,10 +422,17 @@ pub extern "C" fn crossterm_cursor_set_style_steady_bar() -> libc::c_int {
   r!()
 }
 
-/// A command that enables mouse event capturing.
+/// Enable mouse event capturing.
 #[no_mangle]
-pub extern "C" fn crossterm_enable_mouse_capture() -> libc::c_int {
+pub extern "C" fn crossterm_event_enable_mouse_capture() -> libc::c_int {
   execute!(std::io::stdout(), crossterm::event::EnableMouseCapture).c_unwrap();
+  r!()
+}
+
+/// Disable mouse event capturing.
+#[no_mangle]
+pub extern "C" fn crossterm_event_disable_mouse_capture() -> libc::c_int {
+  execute!(std::io::stdout(), crossterm::event::DisableMouseCapture).c_unwrap();
   r!()
 }
 
@@ -392,7 +462,7 @@ pub enum KeyboardEnhancementFlags {
 /// which adds extra information to keyboard events and removes ambiguity for modifier keys.
 /// It should be paired with [`crossterm_pop_keyboard_enhancement_flags`] at the end of execution.
 #[no_mangle]
-pub extern "C" fn crossterm_push_keyboard_enhancement_flags(flags: u8) -> libc::c_int {
+pub extern "C" fn crossterm_event_push_keyboard_enhancement_flags(flags: u8) -> libc::c_int {
   let flags = crossterm::event::KeyboardEnhancementFlags::from_bits(flags).unwrap();
   execute!(std::io::stdout(), crossterm::event::PushKeyboardEnhancementFlags(flags)).c_unwrap();
   r!()
@@ -400,7 +470,7 @@ pub extern "C" fn crossterm_push_keyboard_enhancement_flags(flags: u8) -> libc::
 
 /// Disables extra kinds of keyboard events.
 #[no_mangle]
-pub extern "C" fn crossterm_pop_keyboard_enhancement_flags() -> libc::c_int {
+pub extern "C" fn crossterm_event_pop_keyboard_enhancement_flags() -> libc::c_int {
   execute!(std::io::stdout(), crossterm::event::PopKeyboardEnhancementFlags).c_unwrap();
   r!()
 }
@@ -409,7 +479,7 @@ pub extern "C" fn crossterm_pop_keyboard_enhancement_flags() -> libc::c_int {
 ///
 /// It should be paired with [`crossterm_event_disable_focus_change`] at the end of execution.
 ///
-/// Focus events can be captured with [read](./fn.read.html)/[poll](./fn.poll.html).
+/// Focus events can be captured with [`crossterm_event_read`].
 #[no_mangle]
 pub extern "C" fn crossterm_event_enable_focus_change() -> libc::c_int {
   execute!(std::io::stdout(), crossterm::event::EnableFocusChange).c_unwrap();
@@ -425,19 +495,19 @@ pub extern "C" fn crossterm_event_disable_focus_change() -> libc::c_int {
 
 /// Enables [bracketed paste mode](https://en.wikipedia.org/wiki/Bracketed-paste).
 ///
-/// It should be paired with [`DisableBracketedPaste`] at the end of execution.
+/// It should be paired with [`crossterm_event_disable_bracketed_paste`] at the end of execution.
 ///
 /// This is not supported in older Windows terminals without
 /// [virtual terminal sequences](https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences).
 #[no_mangle]
-pub extern "C" fn crossterm_enable_bracketed_paste() -> libc::c_int {
+pub extern "C" fn crossterm_event_enable_bracketed_paste() -> libc::c_int {
   execute!(std::io::stdout(), crossterm::event::EnableBracketedPaste).c_unwrap();
   r!()
 }
 
 /// Disables bracketed paste mode.
 #[no_mangle]
-pub extern "C" fn crossterm_disable_bracketed_paste() -> libc::c_int {
+pub extern "C" fn crossterm_event_disable_bracketed_paste() -> libc::c_int {
   execute!(std::io::stdout(), crossterm::event::DisableBracketedPaste).c_unwrap();
   r!()
 }
@@ -593,12 +663,10 @@ pub enum Color {
   /// An RGB color. See [RGB color model](https://en.wikipedia.org/wiki/RGB_color_model) for more info.
   ///
   /// Most UNIX terminals and Windows 10 supported only.
-  /// See [Platform-specific notes](enum.Color.html#platform-specific-notes) for more info.
   Rgb { r: u8, g: u8, b: u8 },
   /// An ANSI color. See [256 colors - cheat sheet](https://jonasjacek.github.io/colors/) for more info.
   ///
   /// Most UNIX terminals and Windows 10 supported only.
-  /// See [Platform-specific notes](enum.Color.html#platform-specific-notes) for more info.
   AnsiValue(u8),
 }
 
@@ -665,7 +733,7 @@ pub extern "C" fn crossterm_style_reset_color() -> libc::c_int {
 /// Tells whether the raw mode is enabled.
 ///
 /// Check error message to see if this function failed
-pub fn is_raw_mode_enabled() -> bool {
+pub fn crossterm_terminal_is_raw_mode_enabled() -> bool {
   crossterm::terminal::is_raw_mode_enabled().c_unwrap()
 }
 
@@ -683,6 +751,7 @@ pub extern "C" fn crossterm_terminal_enable_raw_mode() -> libc::c_int {
   r!()
 }
 
+/// TerminalSize
 #[repr(C)]
 pub struct TerminalSize {
   pub width: u16,
@@ -802,7 +871,7 @@ pub extern "C" fn crossterm_terminal_set_title(title: *const libc::c_char) -> li
 /// # Notes
 ///
 /// * Commands must be executed/queued for execution otherwise they do nothing.
-/// * Use [EndSynchronizedUpdate](./struct.EndSynchronizedUpdate.html) command to leave the entered alternate screen.
+/// * Use [`crossterm_terminal_end_synchronized_update`] command to leave the entered alternate screen.
 ///
 /// When rendering the screen of the terminal, the Emulator usually iterates through each visible grid cell and
 /// renders its current state. With applications updating the screen a at higher frequency this can cause tearing.
@@ -824,7 +893,7 @@ pub extern "C" fn crossterm_terminal_begin_synchronized_update() -> libc::c_int 
 /// # Notes
 ///
 /// * Commands must be executed/queued for execution otherwise they do nothing.
-/// * Use [BeginSynchronizedUpdate](./struct.BeginSynchronizedUpdate.html) to enter the alternate screen.
+/// * Use [`crossterm_terminal_begin_synchronized_update`] to enter the alternate screen.
 ///
 /// When rendering the screen of the terminal, the Emulator usually iterates through each visible grid cell and
 /// renders its current state. With applications updating the screen a at higher frequency this can cause tearing.
