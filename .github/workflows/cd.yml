@@ -1,4 +1,4 @@
-name: BinaryBuilder
+name: CD
 on:
   push:
     branches:
