@@ -8,8 +8,25 @@ on:
 jobs:
   build:
     name: GitHub artifacts
-    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - i686-linux-gnu
+          - x86_64-linux-gnu
+          - aarch64-linux-gnu
+          - armv6l-linux-gnueabihf
+          - armv7l-linux-gnueabihf
+          - powerpc64le-linux-gnu
+          # - i686-linux-musl
+          # - x86_64-linux-musl
+          # - aarch64-linux-musl
+          # - arm-linux-musleabihf
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+          - x86_64-unknown-freebsd
+          # - i686-w64-mingw32
+          - x86_64-w64-mingw32
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
@@ -21,13 +38,14 @@ jobs:
           BINARYBUILDER_AUTOMATIC_APPLE: true
         run: |
           julia --color=yes -e 'using Pkg; pkg"add BinaryBuilder; build"'
-          julia --color=yes ./.github/build_tarballs.jl --verbose
+          julia --color=yes ./.github/build_tarballs.jl ${{matrix.target}} --verbose
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: artifacts
           path: products/
       - name: Publish tarball
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: products/*
