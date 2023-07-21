@@ -3,22 +3,22 @@ on: [push, create]
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target:
-          - i686-linux-gnu
-          - x86_64-linux-gnu
-          - aarch64-linux-gnu
-          - arm-linux-gnueabihf
-          - powerpc64le-linux-gnu
-          # - i686-linux-musl
-          # - x86_64-linux-musl
-          # - aarch64-linux-musl
-          # - arm-linux-musleabihf
-          - x86_64-apple-darwin14
-          - x86_64-unknown-freebsd11.1
-          # - i686-w64-mingw32
-          - x86_64-w64-mingw32
+    # strategy:
+    #   matrix:
+    #     target:
+    #       - i686-linux-gnu
+    #       - x86_64-linux-gnu
+    #       - aarch64-linux-gnu
+    #       - arm-linux-gnueabihf
+    #       - powerpc64le-linux-gnu
+    #       # - i686-linux-musl
+    #       # - x86_64-linux-musl
+    #       # - aarch64-linux-musl
+    #       # - arm-linux-musleabihf
+    #       - x86_64-apple-darwin14
+    #       - x86_64-unknown-freebsd11.1
+    #       # - i686-w64-mingw32
+    #       - x86_64-w64-mingw32
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
@@ -30,7 +30,7 @@ jobs:
           BINARYBUILDER_AUTOMATIC_APPLE: true
         run: |
           julia --color=yes -e 'using Pkg; pkg"add BinaryBuilder; build"'
-          julia --color=yes ./.github/build_tarballs.jl --verbose ${{ matrix.target }}
+          julia --color=yes ./.github/build_tarballs.jl --verbose
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
