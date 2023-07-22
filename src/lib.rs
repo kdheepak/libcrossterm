@@ -191,7 +191,7 @@ pub extern "C" fn crossterm_event_read() -> *const libc::c_char {
     },
     Err(e) => {
       serde_json::json!({
-        "error": format!("Something went wrong with read(): {:?}", anyhow::anyhow!(e)),
+        "error": format!("Something went wrong with crossterm_event_read(): {:?}", anyhow::anyhow!(e)),
       })
       .to_string()
     },
