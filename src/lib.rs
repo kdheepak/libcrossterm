@@ -152,11 +152,11 @@ pub extern "C" fn crossterm_free_c_char(s: *mut libc::c_char) -> libc::c_int {
   0
 }
 
-/// Checks if there is an [`Event`](enum.Event.html) available.
+/// Checks if there is an `Event` available.
 ///
-/// Returns `Ok(true)` if an [`Event`](enum.Event.html) is available otherwise it returns `Ok(false)`.
+/// Returns `true` if an `Event` is available otherwise it returns `false`.
 ///
-/// `Ok(true)` guarantees that subsequent call to the [`read`](fn.read.html) function
+/// `Ok(true)` guarantees that subsequent call to the [`crossterm_event_read`] function
 /// won't block.
 ///
 /// # Arguments
@@ -173,18 +173,28 @@ pub extern "C" fn crossterm_event_poll(secs: u64, nanos: u32) -> libc::c_int {
   }
 }
 
-/// Reads a single Event as a string.
+/// Reads a single Event as a UTF-8 json string.
 ///
-/// This function blocks until an Event is available. Combine it with the
-/// [`crossterm_event_poll`] function to get non-blocking reads.
-/// Use [`crossterm_free_c_char`] to free data
+/// This function blocks until an Event is available.
+/// Combine it with the [`crossterm_event_poll`] function to get non-blocking reads.
+/// User is responsible to free string. Use [`crossterm_free_c_char`] to free data
 #[no_mangle]
 pub extern "C" fn crossterm_event_read() -> *const libc::c_char {
   let string = match crossterm::event::read() {
     Ok(evt) => {
-      format!("{:?}", evt)
+      serde_json::to_string(&evt).unwrap_or(
+        serde_json::json!({
+          "error": format!("Unable to convert event {:?} to JSON", evt),
+        })
+        .to_string(),
+      )
     },
-    Err(e) => format!("{:?}", anyhow::anyhow!(e)),
+    Err(e) => {
+      serde_json::json!({
+        "error": format!("Something went wrong with read(): {:?}", anyhow::anyhow!(e)),
+      })
+      .to_string()
+    },
   };
   convert_string_to_c_char(string)
 }
