@@ -129,10 +129,11 @@ pub extern "C" fn crossterm_last_error_length() -> libc::c_int {
   })
 }
 
-/// Return most recent error message into a caller-provided buffer as a UTF-8 string
+/// Return most recent error message into a UTF-8 string buffer.
 ///
-/// Null character is stored in the last location of buffer
-/// Use [`crossterm_free_c_char`] to free data
+/// Null character is stored in the last location of buffer.
+/// Caller is responsible to memory associated with string buffer.
+/// Use [`crossterm_free_c_char`] to free data.
 #[no_mangle]
 pub extern "C" fn crossterm_last_error_message() -> *const libc::c_char {
   let last_error = take_last_error()
