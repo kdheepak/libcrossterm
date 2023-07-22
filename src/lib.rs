@@ -142,6 +142,9 @@ pub extern "C" fn crossterm_last_error_message() -> *const libc::c_char {
   convert_string_to_c_char(string)
 }
 
+/// Frees data behind pointer to UTF-8 string allocated by this crate
+///
+/// Null character is stored in the last location of buffer.
 #[no_mangle]
 pub extern "C" fn crossterm_free_c_char(s: *mut libc::c_char) -> libc::c_int {
   if !s.is_null() {
