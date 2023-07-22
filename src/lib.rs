@@ -156,7 +156,7 @@ pub extern "C" fn crossterm_free_c_char(s: *mut libc::c_char) -> libc::c_int {
 ///
 /// Returns `true` if an `Event` is available otherwise it returns `false`.
 ///
-/// `Ok(true)` guarantees that subsequent call to the [`crossterm_event_read`] function
+/// `true` guarantees that subsequent call to the [`crossterm_event_read`] function
 /// won't block.
 ///
 /// # Arguments
