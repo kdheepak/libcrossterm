@@ -49,6 +49,9 @@ jobs:
         with:
           name: artifacts
           path: products/
+      - name: Remove logs
+        run: |
+          julia --color=yes -e 'rm.(map(f -> joinpath("products/", f), filter(f -> occursin("-logs", f), readdir("products/"))))'
       - name: Publish tarball
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
