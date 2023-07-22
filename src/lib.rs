@@ -215,7 +215,7 @@ pub struct CursorPosition {
 
 /// Get cursor position (column, row)
 #[no_mangle]
-pub extern "C" fn crossterm_get_cursor_position(pos: &mut CursorPosition) -> libc::c_int {
+pub extern "C" fn crossterm_cursor_position_get(pos: &mut CursorPosition) -> libc::c_int {
   let (column, row) = crossterm::cursor::position().c_unwrap();
   pos.column = column;
   pos.row = row;
@@ -224,7 +224,7 @@ pub extern "C" fn crossterm_get_cursor_position(pos: &mut CursorPosition) -> lib
 
 /// Set cursor position (column, row)
 #[no_mangle]
-pub extern "C" fn crossterm_set_cursor_position(pos: CursorPosition) -> libc::c_int {
+pub extern "C" fn crossterm_cursor_position_set(pos: CursorPosition) -> libc::c_int {
   execute!(std::io::stdout(), crossterm::cursor::MoveTo(pos.column, pos.row)).c_unwrap();
   r!()
 }
