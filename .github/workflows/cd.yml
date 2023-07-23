@@ -112,10 +112,11 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           path: ygg
+          token: ${{ secrets.PAT }}
           commit-message: "Upgrade libcrossterm to ${{ github.ref }}"
           title: "[libcrossterm] Upgrade to ${{ github.ref }}"
           branch: libcrossterm/${{ github.ref }}
-          body: "Automatic PR generated for https://github.com/kdheepak/libcrossterm "
+          body: "Automatic PR generated for https://github.com/kdheepak/libcrossterm"
 
       - name: Check outputs
         if: startsWith(github.ref, 'refs/tags/')
