@@ -14,6 +14,7 @@ name = "crossterm"
 
 [dependencies]
 anyhow = "1.0.72"
+bitflags = { version = "2.3.3", features = ["serde"] }
 crossterm = { version = "0.26.1", features = ["event-stream", "serde"] }
 libc = "0.2.147"
 log = "0.4.19"

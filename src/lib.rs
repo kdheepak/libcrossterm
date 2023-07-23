@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use crossterm::{self, execute};
 use log::trace;
 
@@ -155,9 +156,323 @@ pub extern "C" fn crossterm_free_c_char(s: *mut libc::c_char) -> libc::c_int {
   0
 }
 
-/// Checks if there is an `Event` available.
+/// Represents a media key (as part of [`KeyCode::Media`]).
+#[repr(C)]
+pub enum MediaKeyCode {
+  /// Play media key.
+  Play,
+  /// Pause media key.
+  Pause,
+  /// Play/Pause media key.
+  PlayPause,
+  /// Reverse media key.
+  Reverse,
+  /// Stop media key.
+  Stop,
+  /// Fast-forward media key.
+  FastForward,
+  /// Rewind media key.
+  Rewind,
+  /// Next-track media key.
+  TrackNext,
+  /// Previous-track media key.
+  TrackPrevious,
+  /// Record media key.
+  Record,
+  /// Lower-volume media key.
+  LowerVolume,
+  /// Raise-volume media key.
+  RaiseVolume,
+  /// Mute media key.
+  MuteVolume,
+}
+
+/// Represents a modifier key (as part of [`KeyCode::Modifier`]).
+#[repr(C)]
+pub enum ModifierKeyCode {
+  /// Left Shift key.
+  LeftShift,
+  /// Left Control key.
+  LeftControl,
+  /// Left Alt key.
+  LeftAlt,
+  /// Left Super key.
+  LeftSuper,
+  /// Left Hyper key.
+  LeftHyper,
+  /// Left Meta key.
+  LeftMeta,
+  /// Right Shift key.
+  RightShift,
+  /// Right Control key.
+  RightControl,
+  /// Right Alt key.
+  RightAlt,
+  /// Right Super key.
+  RightSuper,
+  /// Right Hyper key.
+  RightHyper,
+  /// Right Meta key.
+  RightMeta,
+  /// Iso Level3 Shift key.
+  IsoLevel3Shift,
+  /// Iso Level5 Shift key.
+  IsoLevel5Shift,
+}
+
+/// Represents a key.
+#[repr(C)]
+pub enum KeyCode {
+  /// Backspace key.
+  Backspace,
+  /// Enter key.
+  Enter,
+  /// Left arrow key.
+  Left,
+  /// Right arrow key.
+  Right,
+  /// Up arrow key.
+  Up,
+  /// Down arrow key.
+  Down,
+  /// Home key.
+  Home,
+  /// End key.
+  End,
+  /// Page up key.
+  PageUp,
+  /// Page down key.
+  PageDown,
+  /// Tab key.
+  Tab,
+  /// Shift + Tab key.
+  BackTab,
+  /// Delete key.
+  Delete,
+  /// Insert key.
+  Insert,
+  /// F key.
+  ///
+  /// `KeyCode::F(1)` represents F1 key, etc.
+  F(u8),
+  /// A character.
+  ///
+  /// `KeyCode::Char('c')` represents `c` character, etc.
+  Char(char),
+  /// Null.
+  Null,
+  /// Escape key.
+  Esc,
+  /// Caps Lock key.
+  ///
+  /// **Note:** this key can only be read if
+  /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  CapsLock,
+  /// Scroll Lock key.
+  ///
+  /// **Note:** this key can only be read if
+  /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  ScrollLock,
+  /// Num Lock key.
+  ///
+  /// **Note:** this key can only be read if
+  /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  NumLock,
+  /// Print Screen key.
+  ///
+  /// **Note:** this key can only be read if
+  /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  PrintScreen,
+  /// Pause key.
+  ///
+  /// **Note:** this key can only be read if
+  /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  Pause,
+  /// Menu key.
+  ///
+  /// **Note:** this key can only be read if
+  /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  Menu,
+  /// The "Begin" key (often mapped to the 5 key when Num Lock is turned on).
+  ///
+  /// **Note:** this key can only be read if
+  /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  KeypadBegin,
+  /// A media key.
+  ///
+  /// **Note:** these keys can only be read if
+  /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  Media(MediaKeyCode),
+  /// A modifier key.
+  ///
+  /// **Note:** these keys can only be read if **both**
+  /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] and
+  /// [`KeyboardEnhancementFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES`] have been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  Modifier(ModifierKeyCode),
+}
+
+bitflags! {
+    /// Represents key modifiers (shift, control, alt, etc.).
+    ///
+    /// **Note:** `SUPER`, `HYPER`, and `META` can only be read if
+    /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+    /// [`PushKeyboardEnhancementFlags`].
+    #[repr(C)]
+    pub struct KeyModifiers: u8 {
+        const SHIFT = 0b0000_0001;
+        const CONTROL = 0b0000_0010;
+        const ALT = 0b0000_0100;
+        const SUPER = 0b0000_1000;
+        const HYPER = 0b0001_0000;
+        const META = 0b0010_0000;
+        const NONE = 0b0000_0000;
+    }
+}
+
+/// Represents a keyboard event kind.
+#[repr(C)]
+pub enum KeyEventKind {
+  Press,
+  Repeat,
+  Release,
+}
+
+bitflags! {
+    /// Represents extra state about the key event.
+    ///
+    /// **Note:** This state can only be read if
+    /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+    /// [`PushKeyboardEnhancementFlags`].
+    #[repr(C)]
+    pub struct KeyEventState: u8 {
+        /// The key event origins from the keypad.
+        const KEYPAD = 0b0000_0001;
+        /// Caps Lock was enabled for this key event.
+        ///
+        /// **Note:** this is set for the initial press of Caps Lock itself.
+        const CAPS_LOCK = 0b0000_1000;
+        /// Num Lock was enabled for this key event.
+        ///
+        /// **Note:** this is set for the initial press of Num Lock itself.
+        const NUM_LOCK = 0b0000_1000;
+        const NONE = 0b0000_0000;
+    }
+}
+
+/// Represents a key event.
+#[repr(C)]
+pub struct KeyEvent {
+  /// The key itself.
+  pub code: KeyCode,
+  /// Additional key modifiers.
+  pub modifiers: KeyModifiers,
+  /// Kind of event.
+  ///
+  /// Only set if:
+  /// - Unix: [`KeyboardEnhancementFlags::REPORT_EVENT_TYPES`] has been enabled with [`PushKeyboardEnhancementFlags`].
+  /// - Windows: always
+  pub kind: KeyEventKind,
+  /// Keyboard state.
+  ///
+  /// Only set if [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+  /// [`PushKeyboardEnhancementFlags`].
+  pub state: KeyEventState,
+}
+
+/// A mouse event kind.
 ///
-/// Returns `true` if an `Event` is available otherwise it returns `false`.
+/// # Platform-specific Notes
+///
+/// ## Mouse Buttons
+///
+/// Some platforms/terminals do not report mouse button for the
+/// `MouseEventKind::Up` and `MouseEventKind::Drag` events. `MouseButton::Left`
+/// is returned if we don't know which button was used.
+#[repr(C)]
+pub enum MouseEventKind {
+  /// Pressed mouse button. Contains the button that was pressed.
+  Down(MouseButton),
+  /// Released mouse button. Contains the button that was released.
+  Up(MouseButton),
+  /// Moved the mouse cursor while pressing the contained mouse button.
+  Drag(MouseButton),
+  /// Moved the mouse cursor while not pressing a mouse button.
+  Moved,
+  /// Scrolled mouse wheel downwards (towards the user).
+  ScrollDown,
+  /// Scrolled mouse wheel upwards (away from the user).
+  ScrollUp,
+}
+
+/// Represents a mouse button.
+#[repr(C)]
+pub enum MouseButton {
+  /// Left mouse button.
+  Left,
+  /// Right mouse button.
+  Right,
+  /// Middle mouse button.
+  Middle,
+}
+
+/// Represents a mouse event.
+///
+/// # Platform-specific Notes
+///
+/// ## Mouse Buttons
+///
+/// Some platforms/terminals do not report mouse button for the
+/// `MouseEventKind::Up` and `MouseEventKind::Drag` events. `MouseButton::Left`
+/// is returned if we don't know which button was used.
+///
+/// ## Key Modifiers
+///
+/// Some platforms/terminals does not report all key modifiers
+/// combinations for all mouse event types. For example - macOS reports
+/// `Ctrl` + left mouse button click as a right mouse button click.
+#[repr(C)]
+pub struct MouseEvent {
+  /// The kind of mouse event that was caused.
+  pub kind: MouseEventKind,
+  /// The column that the event occurred on.
+  pub column: u16,
+  /// The row that the event occurred on.
+  pub row: u16,
+  /// The key modifiers active when the event occurred.
+  pub modifiers: KeyModifiers,
+}
+
+/// Represents an event.
+#[repr(C)]
+pub enum Event {
+  /// The terminal gained focus
+  FocusGained,
+  /// The terminal lost focus
+  FocusLost,
+  /// A single key event with additional pressed modifiers.
+  Key(KeyEvent),
+  /// A single mouse event with additional pressed modifiers.
+  Mouse(MouseEvent),
+  /// A string that was pasted into the terminal. Only emitted if bracketed paste has been
+  /// enabled.
+  Paste(String),
+  /// An resize event with new dimensions after resize (columns, rows).
+  /// **Note** that resize events can occur in batches.
+  Resize(u16, u16),
+}
+
+/// Checks if there is an [`Event`] available.
+///
+/// Returns `true` if an [`Event`] is available otherwise it returns `false`.
 ///
 /// `true` guarantees that subsequent call to the [`crossterm_event_read`] function
 /// won't block.
@@ -176,9 +491,9 @@ pub extern "C" fn crossterm_event_poll(secs: u64, nanos: u32) -> libc::c_int {
   }
 }
 
-/// Reads a single Event as a UTF-8 json string.
+/// Reads a single [`Event`] as a UTF-8 json string.
 ///
-/// This function blocks until an Event is available.
+/// This function blocks until an [`Event`] is available.
 /// Combine it with the [`crossterm_event_poll`] function to get non-blocking reads.
 /// User is responsible to free string. Use [`crossterm_free_c_char`] to free data
 #[no_mangle]
@@ -805,8 +1120,6 @@ pub extern "C" fn crossterm_leave_alternate_screen() -> libc::c_int {
 
 /// Different ways to clear the terminal buffer.
 #[repr(C)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub enum ClearType {
   /// All cells.
   All,

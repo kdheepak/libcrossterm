@@ -59,7 +59,7 @@ usize_is_size_t = true
 
 
 [export]
-include = []
+include = ["Event"]
 exclude = []
 prefix = "crossterm_"
 item_types = []
