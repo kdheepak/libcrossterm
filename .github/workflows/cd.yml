@@ -90,6 +90,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           repository: "JuliaPackaging/Yggdrasil"
+          token: ${{ secrets.PAT }}
           path: ygg
 
       - uses: actions/checkout@v3
