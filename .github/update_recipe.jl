@@ -1,7 +1,5 @@
 using Pkg
 
-version = VersionNumber(strip(Pkg.TOML.parsefile(joinpath(@__DIR__, "../Cargo.toml"))["package"]["version"]))
-
 function get_commit_id()
   event_file = get(ENV, "GITHUB_EVENT_PATH", "")
   ref = "HEAD"
@@ -22,22 +20,8 @@ function get_commit_id()
 end
 
 function get_version()
-  event_file = get(ENV, "GITHUB_EVENT_PATH", "")
-  ref = "HEAD"
-  gaction = get(ENV, "GITHUB_ACTIONS", "")
-  if !isempty(gaction)
-    # .pull_request.head.sha, .release.tag_name,
-    ref = readlines(`jq --raw-output '.pull_request.head.sha' $event_file`)[1]
-    if ref == "null"
-      ref = readlines(`jq --raw-output '.release.tag_name' $event_file`)[1]
-    end
-  end
-  commit = if ref == "null"
-    readlines(`git rev-list --tags --max-count=1`)[1]
-  else
-    ref
-  end
-  return readlines(`git describe --tags $commit`)[1]
+  version = VersionNumber(strip(Pkg.TOML.parsefile(joinpath(@__DIR__, "../Cargo.toml"))["package"]["version"]))
+  string(version)
 end
 
 function main()
