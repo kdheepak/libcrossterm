@@ -114,6 +114,7 @@ jobs:
         with:
           path: ygg
           token: ${{ secrets.PAT }}
+          push-to-fork: kdheepak/Yggdrasil
           commit-message: "Upgrade libcrossterm to ${{ github.ref }}"
           title: "[libcrossterm] Upgrade to ${{ github.ref }}"
           branch: libcrossterm/${{ github.ref }}
