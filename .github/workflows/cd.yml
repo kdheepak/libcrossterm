@@ -106,7 +106,8 @@ jobs:
 
       - name: Prepare
         run: |
-          julia libcrossterm/.github/update_recipe.jl ygg/L/libcrossterm/build_tarballs.jl
+          cd libcrossterm
+          julia .github/update_recipe.jl ../ygg/L/libcrossterm/build_tarballs.jl
 
       - name: Debug
         run: |
