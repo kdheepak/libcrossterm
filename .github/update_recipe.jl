@@ -32,8 +32,12 @@ function get_version()
       ref = readlines(`jq --raw-output '.release.tag_name' $event_file`)[1]
     end
   end
-
-  return readlines(`git rev-parse $ref`)[1]
+  if ref == "null"
+    commit = readlines(`git rev-list --tags --max-count=1`)[1]
+  else
+    commit = ref
+  end
+  return readlines(`git describe --tags $commit`)[1]
 end
 
 function main()
