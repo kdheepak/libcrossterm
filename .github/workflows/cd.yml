@@ -101,18 +101,10 @@ jobs:
         with:
           version: "1.9"
 
-      - name: Debug
-        run: |
-          cat ygg/L/libcrossterm/build_tarballs.jl
-
       - name: Prepare
         run: |
           cd libcrossterm
           julia .github/update_recipe.jl ../ygg/L/libcrossterm/build_tarballs.jl
-
-      - name: Debug
-        run: |
-          cat ygg/L/libcrossterm/build_tarballs.jl
 
       - name: Make PR
         if: startsWith(github.ref, 'refs/tags/')
