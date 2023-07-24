@@ -451,6 +451,12 @@ pub struct MouseEvent {
   pub modifiers: KeyModifiers,
 }
 
+#[repr(C)]
+pub struct CString {
+  str: *const libc::c_char,
+  len: std::ffi::c_int,
+}
+
 /// Represents an event.
 #[repr(C)]
 pub enum Event {
@@ -464,7 +470,7 @@ pub enum Event {
   Mouse(MouseEvent),
   /// A string that was pasted into the terminal. Only emitted if bracketed paste has been
   /// enabled.
-  Paste(String),
+  Paste(CString),
   /// An resize event with new dimensions after resize (columns, rows).
   /// **Note** that resize events can occur in batches.
   Resize(u16, u16),
