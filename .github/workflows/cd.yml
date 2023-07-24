@@ -98,6 +98,11 @@ jobs:
           fetch-depth: "0"
           path: libcrossterm
 
+      - name: Set env
+        run: |
+          echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+          echo "TAG_VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
+
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1.9"
@@ -115,10 +120,10 @@ jobs:
           path: ygg
           token: ${{ secrets.PAT }}
           push-to-fork: kdheepak/Yggdrasil
-          commit-message: "Bump libcrossterm to ${{ github.ref }}"
-          title: "[libcrossterm] Bump to ${{ github.ref }}"
+          commit-message: "Bump libcrossterm to ${{ env.TAG_VERSION }}"
+          title: "[libcrossterm] Bump to ${{ env.TAG_VERSION }}"
           branch: libcrossterm/${{ github.ref }}
-          body: "Automatic PR generated for https://github.com/kdheepak/libcrossterm"
+          body: "Automated PR generated for https://github.com/kdheepak/libcrossterm"
 
       - name: Check outputs
         if: startsWith(github.ref, 'refs/tags/')
