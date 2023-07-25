@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 use crossterm::{self, queue};
 use log::trace;
+use std::io::Write;
 
 fn convert_string_to_c_char(string: String) -> *mut libc::c_char {
   // Convert the String to a CString
@@ -1284,5 +1285,17 @@ pub extern "C" fn crossterm_terminal_begin_synchronized_update() -> libc::c_int 
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_end_synchronized_update() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::terminal::EndSynchronizedUpdate).c_unwrap();
+  r!()
+}
+
+
+/// Flush the stdout stream, ensuring that all intermediately buffered contents reach their destination.
+///
+/// It is considered an error if not all bytes could be written due to I/O errors or EOF being reached.
+#[no_mangle]
+pub extern "C" fn crossterm_flush() -> libc::c_int {
+  if let Err(err) = std::io::stdout().flush() {
+    set_last_error(anyhow::anyhow!(err))
+  }
   r!()
 }
