@@ -1133,8 +1133,17 @@ pub extern "C" fn crossterm_style_print_char(c: u32) -> libc::c_int {
 }
 
 /// Print string to stdout
+///
+/// # Safety
+///
+/// This function takes a raw pointer as argument. As such, the caller must ensure that:
+/// - The `title` pointer points to a valid null-terminated string.
+/// - This function borrows a slice to a valid null-terminated string and the memory referenced by `title` won't be deallocated or modified for the duration of the function call..
+/// - The `title` pointer is correctly aligned and `title` points to an initialized memory.
+///
+/// If these conditions are not met, the behavior is undefined.
 #[no_mangle]
-pub extern "C" fn crossterm_style_print_string(s: *const libc::c_char) -> libc::c_int {
+pub unsafe extern "C" fn crossterm_style_print_string(s: *const libc::c_char) -> libc::c_int {
   if s.is_null() {
     RESULT.with(|r| {
       *r.borrow_mut() = -1;
@@ -1156,9 +1165,18 @@ pub extern "C" fn crossterm_style_print_string(s: *const libc::c_char) -> libc::
 }
 
 /// Print string to stdout
+///
+/// # Safety
+///
+/// This function takes a raw pointer as argument. As such, the caller must ensure that:
+/// - The `title` pointer points to a valid null-terminated string.
+/// - This function borrows a slice to a valid null-terminated string and the memory referenced by `title` won't be deallocated or modified for the duration of the function call..
+/// - The `title` pointer is correctly aligned and `title` points to an initialized memory.
+///
+/// If these conditions are not met, the behavior is undefined.
 #[no_mangle]
-pub extern "C" fn crossterm_style_print(s: *const libc::c_char) -> libc::c_int {
-  crossterm_style_print_string(s)
+pub unsafe extern "C" fn crossterm_style_print(s: *const libc::c_char) -> libc::c_int {
+  unsafe { crossterm_style_print_string(s) }
 }
 
 #[repr(C)]
@@ -1748,7 +1766,7 @@ pub extern "C" fn crossterm_terminal_clear(ct: ClearType) -> libc::c_int {
 ///
 /// If these conditions are not met, the behavior is undefined.
 #[no_mangle]
-pub extern "C" fn crossterm_terminal_title(title: *const libc::c_char) -> libc::c_int {
+pub unsafe extern "C" fn crossterm_terminal_title(title: *const libc::c_char) -> libc::c_int {
   if title.is_null() {
     RESULT.with(|r| {
       *r.borrow_mut() = -1;

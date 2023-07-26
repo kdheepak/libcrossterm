@@ -11,7 +11,7 @@ fn create_colors() {
   let mut contents = String::new();
   file.read_to_string(&mut contents).expect("Could not read colors.json");
   let data: serde_json::Value = serde_json::from_str(&contents).expect("Could not parse JSON");
-  std::fs::write(&dest_path, format!("pub static COLORS: &'static str = r###\"{}\"###;", data.to_string())).unwrap();
+  std::fs::write(dest_path, format!("pub static COLORS: &str = r##\"{}\"##;", data)).unwrap();
 }
 
 fn create_crossterm_header() {
