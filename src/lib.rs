@@ -566,7 +566,7 @@ pub extern "C" fn crossterm_cursor_position_set(pos: CursorPosition) -> libc::c_
 /// # Notes
 /// * Top left cell is represented as `0,0`.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_moveto(x: u16, y: u16) -> libc::c_int {
+pub extern "C" fn crossterm_cursor_move_to(x: u16, y: u16) -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::MoveTo(x, y)).c_unwrap();
   r!()
 }
