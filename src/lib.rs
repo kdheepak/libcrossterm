@@ -1120,8 +1120,21 @@ pub extern "C" fn crossterm_style_attribute_not_crossed_out() -> libc::c_int {
   r!()
 }
 
+/// Print char to stdout
 #[no_mangle]
-pub extern "C" fn crossterm_style_print(s: *const libc::c_char) -> libc::c_int {
+pub extern "C" fn crossterm_style_print_char(c: u32) -> libc::c_int {
+  if let Some(ch) = std::char::from_u32(c) {
+    queue!(std::io::stdout(), crossterm::style::Print(ch)).c_unwrap();
+    r!()
+  } else {
+    set_last_error(anyhow::anyhow!("Unable to convert {} to valid char", c));
+    -1
+  }
+}
+
+/// Print string to stdout
+#[no_mangle]
+pub extern "C" fn crossterm_style_print_string(s: *const libc::c_char) -> libc::c_int {
   if s.is_null() {
     RESULT.with(|r| {
       *r.borrow_mut() = -1;
@@ -1140,6 +1153,12 @@ pub extern "C" fn crossterm_style_print(s: *const libc::c_char) -> libc::c_int {
     set_last_error(anyhow::anyhow!("Received invalid UTF-8 string for print string"));
     r!()
   }
+}
+
+/// Print string to stdout
+#[no_mangle]
+pub extern "C" fn crossterm_style_print(s: *const libc::c_char) -> libc::c_int {
+  crossterm_style_print_string(s)
 }
 
 #[repr(C)]
@@ -1233,7 +1252,7 @@ pub extern "C" fn crossterm_style_background_color_rgb(r: u8, g: u8, b: u8) -> l
 /// Sets the the background color to an ANSI value.
 #[no_mangle]
 pub extern "C" fn crossterm_style_background_color_ansi(value: u8) -> libc::c_int {
-    crossterm_style_background_color(Color::AnsiValue(value))
+  crossterm_style_background_color(Color::AnsiValue(value))
 }
 
 /// Sets the the background color to Reset.
@@ -1356,7 +1375,7 @@ pub extern "C" fn crossterm_style_foreground_color_rgb(r: u8, g: u8, b: u8) -> l
 /// Sets the the foreground color to an ANSI value.
 #[no_mangle]
 pub extern "C" fn crossterm_style_foreground_color_ansi(value: u8) -> libc::c_int {
-    crossterm_style_foreground_color(Color::AnsiValue(value))
+  crossterm_style_foreground_color(Color::AnsiValue(value))
 }
 
 /// Sets the the foreground color to Reset.
@@ -1479,7 +1498,7 @@ pub extern "C" fn crossterm_style_underline_color_rgb(r: u8, g: u8, b: u8) -> li
 /// Sets the the underline color to an ANSI value.
 #[no_mangle]
 pub extern "C" fn crossterm_style_underline_color_ansi(value: u8) -> libc::c_int {
-    crossterm_style_underline_color(Color::AnsiValue(value))
+  crossterm_style_underline_color(Color::AnsiValue(value))
 }
 
 /// Sets the the underline color to Reset.
