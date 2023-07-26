@@ -141,7 +141,7 @@ pub extern "C" fn crossterm_last_error_length() -> libc::c_int {
 /// Return most recent error message into a UTF-8 string buffer.
 ///
 /// Null character is stored in the last location of buffer.
-/// Caller is responsible to memory associated with string buffer.
+/// Caller is responsible for memory associated with string buffer.
 /// Use [`crossterm_free_c_char`] to free data.
 #[no_mangle]
 pub extern "C" fn crossterm_last_error_message() -> *const libc::c_char {
@@ -362,7 +362,7 @@ bitflags! {
     ///
     /// **Note:** This state can only be read if
     /// [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
-    /// [`PushKeyboardEnhancementFlags`].
+    /// [`crossterm_event_push_keyboard_enhancement_flags`].
     #[repr(C)]
     pub struct KeyEventState: u8 {
         /// The key event origins from the keypad.
@@ -389,7 +389,7 @@ pub struct KeyEvent {
   /// Kind of event.
   ///
   /// Only set if:
-  /// - Unix: [`KeyboardEnhancementFlags::REPORT_EVENT_TYPES`] has been enabled with [`PushKeyboardEnhancementFlags`].
+  /// - Unix: [`KeyboardEnhancementFlags::REPORT_EVENT_TYPES`] has been enabled with [`crossterm_event_push_keyboard_enhancement_flags`].
   /// - Windows: always
   pub kind: KeyEventKind,
   /// Keyboard state.
@@ -462,12 +462,6 @@ pub struct MouseEvent {
   pub modifiers: KeyModifiers,
 }
 
-#[repr(C)]
-pub struct CString {
-  str: *const libc::c_char,
-  len: std::ffi::c_int,
-}
-
 /// Represents an event.
 #[repr(C)]
 pub enum Event {
@@ -481,7 +475,7 @@ pub enum Event {
   Mouse(MouseEvent),
   /// A string that was pasted into the terminal. Only emitted if bracketed paste has been
   /// enabled.
-  Paste(CString),
+  Paste(*const libc::c_char),
   /// An resize event with new dimensions after resize (columns, rows).
   /// **Note** that resize events can occur in batches.
   Resize(u16, u16),
@@ -489,9 +483,9 @@ pub enum Event {
 
 /// Checks if there is an [`Event`] available.
 ///
-/// Returns `true` if an [`Event`] is available otherwise it returns `false`.
+/// Returns `1` if an [`Event`] is available, it returns `0` if no [`Event`] is available, returns -1 if error has occurred.
 ///
-/// `true` guarantees that subsequent call to the [`crossterm_event_read`] function
+/// When it returns `1`, that guarantees that subsequent call to the [`crossterm_event_read`] function
 /// won't block.
 ///
 /// # Arguments
@@ -508,11 +502,14 @@ pub extern "C" fn crossterm_event_poll(secs: u64, nanos: u32) -> libc::c_int {
   }
 }
 
-/// Reads a single [`Event`] as a UTF-8 json string.
+/// Reads a single [`Event`] as a UTF-8 JSON string.
+/// If error occurs during read, error will be returned as a UTF-8 JSON string.
 ///
 /// This function blocks until an [`Event`] is available.
 /// Combine it with the [`crossterm_event_poll`] function to get non-blocking reads.
-/// User is responsible to free string. Use [`crossterm_free_c_char`] to free data
+///
+/// Caller is responsible for memory associated with string buffer.
+/// Use [`crossterm_free_c_char`] to free data.
 #[no_mangle]
 pub extern "C" fn crossterm_event_read() -> *const libc::c_char {
   let string = match crossterm::event::read() {
@@ -534,33 +531,11 @@ pub extern "C" fn crossterm_event_read() -> *const libc::c_char {
   convert_string_to_c_char(string)
 }
 
-/// Sleeps for `seconds` seconds
+/// Sleeps for n seconds where n is the argument to this function
 #[no_mangle]
 pub extern "C" fn crossterm_sleep(seconds: f64) {
   let duration = std::time::Duration::from_nanos((seconds * 1e9).round() as u64);
   std::thread::sleep(duration);
-}
-
-/// CursorPosition struct
-#[repr(C)]
-pub struct CursorPosition {
-  pub column: u16,
-  pub row: u16,
-}
-
-/// Get cursor position (column, row)
-///
-/// # Notes
-/// * Top left cell is represented as `0,0`.
-///
-/// **DEPRECATED**: Use [`crossterm_cursor_position`] instead
-#[no_mangle]
-#[deprecated(since = "0.5.1", note = "Please use the `crossterm_cursor_position` instead")]
-pub extern "C" fn crossterm_cursor_position_get(pos: &mut CursorPosition) -> libc::c_int {
-  let (column, row) = crossterm::cursor::position().c_unwrap();
-  pos.column = column;
-  pos.row = row;
-  r!()
 }
 
 /// Set cursor position (col, row)
@@ -1619,7 +1594,7 @@ pub extern "C" fn crossterm_style_reset_color() -> libc::c_int {
 /// Returns colors as a UTF-8 JSON string.
 ///
 /// Null character is stored in the last location of buffer.
-/// Caller is responsible to memory associated with string buffer.
+/// Caller is responsible for memory associated with string buffer.
 /// Use [`crossterm_free_c_char`] to free data.
 pub extern "C" fn crossterm_colors() -> *const libc::c_char {
   convert_string_to_c_char(COLORS.to_string())
@@ -1644,13 +1619,6 @@ pub extern "C" fn crossterm_terminal_disable_raw_mode() -> libc::c_int {
 pub extern "C" fn crossterm_terminal_enable_raw_mode() -> libc::c_int {
   crossterm::terminal::enable_raw_mode().c_unwrap();
   r!()
-}
-
-/// TerminalSize
-#[repr(C)]
-pub struct TerminalSize {
-  pub width: u16,
-  pub height: u16,
 }
 
 /// Get terminal size
