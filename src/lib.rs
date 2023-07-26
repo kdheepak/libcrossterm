@@ -1596,6 +1596,7 @@ pub extern "C" fn crossterm_style_reset_color() -> libc::c_int {
 /// Null character is stored in the last location of buffer.
 /// Caller is responsible for memory associated with string buffer.
 /// Use [`crossterm_free_c_char`] to free data.
+#[no_mangle]
 pub extern "C" fn crossterm_colors() -> *const libc::c_char {
   convert_string_to_c_char(COLORS.to_string())
 }
@@ -1603,6 +1604,7 @@ pub extern "C" fn crossterm_colors() -> *const libc::c_char {
 /// Tells whether the raw mode is enabled.
 ///
 /// Check error message to see if this function failed
+#[no_mangle]
 pub fn crossterm_terminal_is_raw_mode_enabled() -> bool {
   crossterm::terminal::is_raw_mode_enabled().c_unwrap()
 }
