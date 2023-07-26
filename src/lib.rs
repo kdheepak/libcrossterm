@@ -1,7 +1,10 @@
+use std::io::Write;
+
 use bitflags::bitflags;
 use crossterm::{self, queue};
 use log::trace;
-use std::io::Write;
+
+include!(concat!(env!("OUT_DIR"), "/colors.rs"));
 
 fn convert_string_to_c_char(string: String) -> *mut libc::c_char {
   // Convert the String to a CString
@@ -9,7 +12,7 @@ fn convert_string_to_c_char(string: String) -> *mut libc::c_char {
     Ok(c_string) => c_string,
     Err(_) => {
       set_last_error(anyhow::anyhow!("Unable to convert {} to CString", &string));
-      return std::ptr::null_mut()
+      return std::ptr::null_mut();
     },
   };
 
@@ -546,7 +549,13 @@ pub struct CursorPosition {
 }
 
 /// Get cursor position (column, row)
+///
+/// # Notes
+/// * Top left cell is represented as `0,0`.
+///
+/// **DEPRECATED**: Use [`crossterm_cursor_position`] instead
 #[no_mangle]
+#[deprecated(since = "0.5.1", note = "Please use the `crossterm_cursor_position` instead")]
 pub extern "C" fn crossterm_cursor_position_get(pos: &mut CursorPosition) -> libc::c_int {
   let (column, row) = crossterm::cursor::position().c_unwrap();
   pos.column = column;
@@ -554,10 +563,25 @@ pub extern "C" fn crossterm_cursor_position_get(pos: &mut CursorPosition) -> lib
   r!()
 }
 
-/// Set cursor position (column, row)
+/// Set cursor position (col, row)
+///
+/// # Notes
+/// * Top left cell is represented as `0,0`.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_position_set(pos: CursorPosition) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveTo(pos.column, pos.row)).c_unwrap();
+pub extern "C" fn crossterm_cursor_position_set(col: u16, row: u16) -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::cursor::MoveTo(col, row)).c_unwrap();
+  r!()
+}
+
+/// Get cursor position (column, row)
+///
+/// # Notes
+/// * Top left cell is represented as `0,0`.
+#[no_mangle]
+pub extern "C" fn crossterm_cursor_position(col: &mut u16, row: &mut u16) -> libc::c_int {
+  let (c, r) = crossterm::cursor::position().c_unwrap();
+  *col = c;
+  *row = r;
   r!()
 }
 
@@ -696,7 +720,7 @@ pub enum CursorStyle {
 
 /// Sets the style of the cursor.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_set_style(cursor_style: CursorStyle) -> libc::c_int {
+pub extern "C" fn crossterm_cursor_style(cursor_style: CursorStyle) -> libc::c_int {
   let cs = match cursor_style {
     CursorStyle::DefaultUserShape => crossterm::cursor::SetCursorStyle::DefaultUserShape,
     CursorStyle::BlinkingBlock => crossterm::cursor::SetCursorStyle::BlinkingBlock,
@@ -712,49 +736,49 @@ pub extern "C" fn crossterm_cursor_set_style(cursor_style: CursorStyle) -> libc:
 
 /// Sets the style of the cursor to default user shape.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_set_style_default_user_shape() -> libc::c_int {
+pub extern "C" fn crossterm_cursor_style_default_user_shape() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::DefaultUserShape).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a blinking block.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_set_style_blinking_block() -> libc::c_int {
+pub extern "C" fn crossterm_cursor_style_blinking_block() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::BlinkingBlock).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a steady block.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_set_style_steady_block() -> libc::c_int {
+pub extern "C" fn crossterm_cursor_style_steady_block() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::SteadyBlock).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a blinking underscore.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_set_style_blinking_underscore() -> libc::c_int {
+pub extern "C" fn crossterm_cursor_style_blinking_underscore() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::BlinkingUnderScore).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a steady underscore.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_set_style_steady_underscore() -> libc::c_int {
+pub extern "C" fn crossterm_cursor_style_steady_underscore() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::SteadyUnderScore).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a blinking bar.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_set_style_blinking_bar() -> libc::c_int {
+pub extern "C" fn crossterm_cursor_style_blinking_bar() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::BlinkingBar).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a steady bar.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_set_style_steady_bar() -> libc::c_int {
+pub extern "C" fn crossterm_cursor_style_steady_bar() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::SteadyBar).c_unwrap();
   r!()
 }
@@ -955,8 +979,169 @@ pub struct Attributes(u32);
 ///
 /// See [`Attribute`] for more info.
 #[no_mangle]
-pub extern "C" fn crossterm_style_set_attribute(attr: Attribute) -> libc::c_int {
+pub extern "C" fn crossterm_style_attribute(attr: Attribute) -> libc::c_int {
   queue!(std::io::stdout(), crossterm::style::SetAttribute(attr.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Reset` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_reset() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Reset.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Bold` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_bold() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Bold.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Dim` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_dim() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Dim.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Italic` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_italic() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Italic.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Underlined` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_underlined() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Underlined.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `DoubleUnderlined` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_double_underlined() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::DoubleUnderlined.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Undercurled` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_undercurled() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Undercurled.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Underdotted` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_underdotted() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Underdotted.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Underdashed` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_underdashed() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Underdashed.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `SlowBlink` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_slow_blink() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::SlowBlink.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `RapidBlink` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_rapid_blink() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::RapidBlink.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Reverse` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_reverse() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Reverse.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Hidden` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_hidden() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Hidden.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `CrossedOut` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_crossed_out() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::CrossedOut.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `Fraktur` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_fraktur() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Fraktur.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `NoBold` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_no_bold() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoBold.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `NormalIntensity` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_normal_intensity() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NormalIntensity.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `NoItalic` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_no_italic() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoItalic.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `NoUnderline` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_no_underline() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoUnderline.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `NoBlink` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_no_blink() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoBlink.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `NoReverse` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_no_reverse() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoReverse.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `NoHidden` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_no_hidden() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoHidden.into())).c_unwrap();
+  r!()
+}
+
+/// Sets the `NotCrossedOut` attribute.
+#[no_mangle]
+pub extern "C" fn crossterm_style_attribute_not_crossed_out() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NotCrossedOut.into())).c_unwrap();
   r!()
 }
 
@@ -1059,27 +1244,369 @@ impl From<Color> for crossterm::style::Color {
 ///
 /// See [`Color`] for more info.
 #[no_mangle]
-pub extern "C" fn crossterm_style_set_background_color(color: Color) -> libc::c_int {
+pub extern "C" fn crossterm_style_background_color(color: Color) -> libc::c_int {
   queue!(std::io::stdout(), crossterm::style::SetBackgroundColor(color.into())).c_unwrap();
   r!()
+}
+
+/// Sets the the background color in RGB.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_rgb(r: u8, g: u8, b: u8) -> libc::c_int {
+  crossterm_style_background_color(Color::Rgb { r, g, b })
+}
+
+/// Sets the the background color to an ANSI value.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_ansi(value: u8) -> libc::c_int {
+    crossterm_style_background_color(Color::AnsiValue(value))
+}
+
+/// Sets the the background color to Reset.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_reset() -> libc::c_int {
+  crossterm_style_background_color(Color::Reset)
+}
+
+/// Sets the the background color to Black.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_black() -> libc::c_int {
+  crossterm_style_background_color(Color::Black)
+}
+
+/// Sets the the background color to DarkGrey.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_dark_grey() -> libc::c_int {
+  crossterm_style_background_color(Color::DarkGrey)
+}
+
+/// Sets the the background color to Red.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_red() -> libc::c_int {
+  crossterm_style_background_color(Color::Red)
+}
+
+/// Sets the the background color to DarkRed.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_dark_red() -> libc::c_int {
+  crossterm_style_background_color(Color::DarkRed)
+}
+
+/// Sets the the background color to Green.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_green() -> libc::c_int {
+  crossterm_style_background_color(Color::Green)
+}
+
+/// Sets the the background color to DarkGreen.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_dark_green() -> libc::c_int {
+  crossterm_style_background_color(Color::DarkGreen)
+}
+
+/// Sets the the background color to Yellow.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_yellow() -> libc::c_int {
+  crossterm_style_background_color(Color::Yellow)
+}
+
+/// Sets the the background color to DarkYellow.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_dark_yellow() -> libc::c_int {
+  crossterm_style_background_color(Color::DarkYellow)
+}
+
+/// Sets the the background color to Blue.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_blue() -> libc::c_int {
+  crossterm_style_background_color(Color::Blue)
+}
+
+/// Sets the the background color to DarkBlue.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_dark_blue() -> libc::c_int {
+  crossterm_style_background_color(Color::DarkBlue)
+}
+
+/// Sets the the background color to Magenta.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_magenta() -> libc::c_int {
+  crossterm_style_background_color(Color::Magenta)
+}
+
+/// Sets the the background color to DarkMagenta.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_dark_magenta() -> libc::c_int {
+  crossterm_style_background_color(Color::DarkMagenta)
+}
+
+/// Sets the the background color to Cyan.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_cyan() -> libc::c_int {
+  crossterm_style_background_color(Color::Cyan)
+}
+
+/// Sets the the background color to DarkCyan.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_dark_cyan() -> libc::c_int {
+  crossterm_style_background_color(Color::DarkCyan)
+}
+
+/// Sets the the background color to White.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_white() -> libc::c_int {
+  crossterm_style_background_color(Color::White)
+}
+
+/// Sets the the background color to Grey.
+#[no_mangle]
+pub extern "C" fn crossterm_style_background_color_grey() -> libc::c_int {
+  crossterm_style_background_color(Color::Grey)
 }
 
 /// Sets the the foreground color.
 ///
 /// See [`Color`] for more info.
 #[no_mangle]
-pub extern "C" fn crossterm_style_set_foreground_color(color: Color) -> libc::c_int {
+pub extern "C" fn crossterm_style_foreground_color(color: Color) -> libc::c_int {
   queue!(std::io::stdout(), crossterm::style::SetForegroundColor(color.into())).c_unwrap();
   r!()
+}
+
+/// Sets the the foreground color in RGB.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_rgb(r: u8, g: u8, b: u8) -> libc::c_int {
+  crossterm_style_foreground_color(Color::Rgb { r, g, b })
+}
+
+/// Sets the the foreground color to an ANSI value.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_ansi(value: u8) -> libc::c_int {
+    crossterm_style_foreground_color(Color::AnsiValue(value))
+}
+
+/// Sets the the foreground color to Reset.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_reset() -> libc::c_int {
+  crossterm_style_foreground_color(Color::Reset)
+}
+
+/// Sets the the foreground color to Black.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_black() -> libc::c_int {
+  crossterm_style_foreground_color(Color::Black)
+}
+
+/// Sets the the foreground color to DarkGrey.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_dark_grey() -> libc::c_int {
+  crossterm_style_foreground_color(Color::DarkGrey)
+}
+
+/// Sets the the foreground color to Red.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_red() -> libc::c_int {
+  crossterm_style_foreground_color(Color::Red)
+}
+
+/// Sets the the foreground color to DarkRed.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_dark_red() -> libc::c_int {
+  crossterm_style_foreground_color(Color::DarkRed)
+}
+
+/// Sets the the foreground color to Green.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_green() -> libc::c_int {
+  crossterm_style_foreground_color(Color::Green)
+}
+
+/// Sets the the foreground color to DarkGreen.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_dark_green() -> libc::c_int {
+  crossterm_style_foreground_color(Color::DarkGreen)
+}
+
+/// Sets the the foreground color to Yellow.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_yellow() -> libc::c_int {
+  crossterm_style_foreground_color(Color::Yellow)
+}
+
+/// Sets the the foreground color to DarkYellow.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_dark_yellow() -> libc::c_int {
+  crossterm_style_foreground_color(Color::DarkYellow)
+}
+
+/// Sets the the foreground color to Blue.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_blue() -> libc::c_int {
+  crossterm_style_foreground_color(Color::Blue)
+}
+
+/// Sets the the foreground color to DarkBlue.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_dark_blue() -> libc::c_int {
+  crossterm_style_foreground_color(Color::DarkBlue)
+}
+
+/// Sets the the foreground color to Magenta.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_magenta() -> libc::c_int {
+  crossterm_style_foreground_color(Color::Magenta)
+}
+
+/// Sets the the foreground color to DarkMagenta.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_dark_magenta() -> libc::c_int {
+  crossterm_style_foreground_color(Color::DarkMagenta)
+}
+
+/// Sets the the foreground color to Cyan.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_cyan() -> libc::c_int {
+  crossterm_style_foreground_color(Color::Cyan)
+}
+
+/// Sets the the foreground color to DarkCyan.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_dark_cyan() -> libc::c_int {
+  crossterm_style_foreground_color(Color::DarkCyan)
+}
+
+/// Sets the the foreground color to White.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_white() -> libc::c_int {
+  crossterm_style_foreground_color(Color::White)
+}
+
+/// Sets the the foreground color to Grey.
+#[no_mangle]
+pub extern "C" fn crossterm_style_foreground_color_grey() -> libc::c_int {
+  crossterm_style_foreground_color(Color::Grey)
 }
 
 /// Sets the the underline color.
 ///
 /// See [`Color`] for more info.
 #[no_mangle]
-pub extern "C" fn crossterm_style_set_underline_color(color: Color) -> libc::c_int {
+pub extern "C" fn crossterm_style_underline_color(color: Color) -> libc::c_int {
   queue!(std::io::stdout(), crossterm::style::SetUnderlineColor(color.into())).c_unwrap();
   r!()
+}
+
+/// Sets the the underline color in RGB.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_rgb(r: u8, g: u8, b: u8) -> libc::c_int {
+  crossterm_style_underline_color(Color::Rgb { r, g, b })
+}
+
+/// Sets the the underline color to an ANSI value.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_ansi(value: u8) -> libc::c_int {
+    crossterm_style_underline_color(Color::AnsiValue(value))
+}
+
+/// Sets the the underline color to Reset.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_reset() -> libc::c_int {
+  crossterm_style_underline_color(Color::Reset)
+}
+
+/// Sets the the underline color to Black.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_black() -> libc::c_int {
+  crossterm_style_underline_color(Color::Black)
+}
+
+/// Sets the the underline color to DarkGrey.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_dark_grey() -> libc::c_int {
+  crossterm_style_underline_color(Color::DarkGrey)
+}
+
+/// Sets the the underline color to Red.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_red() -> libc::c_int {
+  crossterm_style_underline_color(Color::Red)
+}
+
+/// Sets the the underline color to DarkRed.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_dark_red() -> libc::c_int {
+  crossterm_style_underline_color(Color::DarkRed)
+}
+
+/// Sets the the underline color to Green.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_green() -> libc::c_int {
+  crossterm_style_underline_color(Color::Green)
+}
+
+/// Sets the the underline color to DarkGreen.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_dark_green() -> libc::c_int {
+  crossterm_style_underline_color(Color::DarkGreen)
+}
+
+/// Sets the the underline color to Yellow.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_yellow() -> libc::c_int {
+  crossterm_style_underline_color(Color::Yellow)
+}
+
+/// Sets the the underline color to DarkYellow.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_dark_yellow() -> libc::c_int {
+  crossterm_style_underline_color(Color::DarkYellow)
+}
+
+/// Sets the the underline color to Blue.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_blue() -> libc::c_int {
+  crossterm_style_underline_color(Color::Blue)
+}
+
+/// Sets the the underline color to DarkBlue.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_dark_blue() -> libc::c_int {
+  crossterm_style_underline_color(Color::DarkBlue)
+}
+
+/// Sets the the underline color to Magenta.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_magenta() -> libc::c_int {
+  crossterm_style_underline_color(Color::Magenta)
+}
+
+/// Sets the the underline color to DarkMagenta.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_dark_magenta() -> libc::c_int {
+  crossterm_style_underline_color(Color::DarkMagenta)
+}
+
+/// Sets the the underline color to Cyan.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_cyan() -> libc::c_int {
+  crossterm_style_underline_color(Color::Cyan)
+}
+
+/// Sets the the underline color to DarkCyan.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_dark_cyan() -> libc::c_int {
+  crossterm_style_underline_color(Color::DarkCyan)
+}
+
+/// Sets the the underline color to White.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_white() -> libc::c_int {
+  crossterm_style_underline_color(Color::White)
+}
+
+/// Sets the the underline color to Grey.
+#[no_mangle]
+pub extern "C" fn crossterm_style_underline_color_grey() -> libc::c_int {
+  crossterm_style_underline_color(Color::Grey)
 }
 
 /// Resets the colors back to default.
@@ -1087,6 +1614,15 @@ pub extern "C" fn crossterm_style_set_underline_color(color: Color) -> libc::c_i
 pub extern "C" fn crossterm_style_reset_color() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::style::ResetColor).c_unwrap();
   r!()
+}
+
+/// Returns colors as a UTF-8 JSON string.
+///
+/// Null character is stored in the last location of buffer.
+/// Caller is responsible to memory associated with string buffer.
+/// Use [`crossterm_free_c_char`] to free data.
+pub extern "C" fn crossterm_colors() -> *const libc::c_char {
+  convert_string_to_c_char(COLORS.to_string())
 }
 
 /// Tells whether the raw mode is enabled.
@@ -1119,37 +1655,44 @@ pub struct TerminalSize {
 
 /// Get terminal size
 #[no_mangle]
-pub extern "C" fn crossterm_terminal_size(size: &mut TerminalSize) -> libc::c_int {
-  let (width, height) = crossterm::terminal::size().c_unwrap();
-  size.width = width;
-  size.height = height;
+pub extern "C" fn crossterm_terminal_size(width: &mut u16, height: &mut u16) -> libc::c_int {
+  let (w, h) = crossterm::terminal::size().c_unwrap();
+  *width = w;
+  *height = h;
+  r!()
+}
+
+/// Sets the terminal buffer size `(columns, rows)`.
+#[no_mangle]
+pub extern "C" fn crossterm_terminal_size_set(columns: u16, rows: u16) -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::terminal::SetSize(columns, rows)).c_unwrap();
   r!()
 }
 
 /// Disables line wrapping.
 #[no_mangle]
-pub extern "C" fn crossterm_disable_line_wrap() -> libc::c_int {
+pub extern "C" fn crossterm_terminal_disable_line_wrap() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::terminal::DisableLineWrap).c_unwrap();
   r!()
 }
 
 /// Enables line wrapping.
 #[no_mangle]
-pub extern "C" fn crossterm_enable_line_wrap() -> libc::c_int {
+pub extern "C" fn crossterm_terminal_enable_line_wrap() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::terminal::EnableLineWrap).c_unwrap();
   r!()
 }
 
 /// Enters alternate screen.
 #[no_mangle]
-pub extern "C" fn crossterm_enter_alternate_screen() -> libc::c_int {
+pub extern "C" fn crossterm_terminal_enter_alternate_screen() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen).c_unwrap();
   r!()
 }
 
 /// Leaves alternate screen.
 #[no_mangle]
-pub extern "C" fn crossterm_leave_alternate_screen() -> libc::c_int {
+pub extern "C" fn crossterm_terminal_leave_alternate_screen() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen).c_unwrap();
   r!()
 }
@@ -1205,13 +1748,6 @@ pub extern "C" fn crossterm_terminal_clear(ct: ClearType) -> libc::c_int {
   r!()
 }
 
-/// Sets the terminal buffer size `(columns, rows)`.
-#[no_mangle]
-pub extern "C" fn crossterm_terminal_set_size(columns: u16, rows: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::SetSize(columns, rows)).c_unwrap();
-  r!()
-}
-
 /// Sets terminal title.
 ///
 /// # Safety
@@ -1223,7 +1759,7 @@ pub extern "C" fn crossterm_terminal_set_size(columns: u16, rows: u16) -> libc::
 ///
 /// If these conditions are not met, the behavior is undefined.
 #[no_mangle]
-pub extern "C" fn crossterm_terminal_set_title(title: *const libc::c_char) -> libc::c_int {
+pub extern "C" fn crossterm_terminal_title(title: *const libc::c_char) -> libc::c_int {
   if title.is_null() {
     RESULT.with(|r| {
       *r.borrow_mut() = -1;
@@ -1287,7 +1823,6 @@ pub extern "C" fn crossterm_terminal_end_synchronized_update() -> libc::c_int {
   queue!(std::io::stdout(), crossterm::terminal::EndSynchronizedUpdate).c_unwrap();
   r!()
 }
-
 
 /// Flush the stdout stream, ensuring that all intermediately buffered contents reach their destination.
 ///
