@@ -454,8 +454,8 @@ pub enum MouseButton {
 pub struct MouseEvent {
   /// The kind of mouse event that was caused.
   pub kind: MouseEventKind,
-  /// The column that the event occurred on.
-  pub column: u16,
+  /// The col that the event occurred on.
+  pub col: u16,
   /// The row that the event occurred on.
   pub row: u16,
   /// The key modifiers active when the event occurred.
@@ -476,7 +476,7 @@ pub enum Event {
   /// A string that was pasted into the terminal. Only emitted if bracketed paste has been
   /// enabled.
   Paste(*const libc::c_char),
-  /// An resize event with new dimensions after resize (columns, rows).
+  /// An resize event with new dimensions after resize (cols, rows).
   /// **Note** that resize events can occur in batches.
   Resize(u16, u16),
 }
@@ -548,7 +548,7 @@ pub extern "C" fn crossterm_cursor_position_set(col: u16, row: u16) -> libc::c_i
   r!()
 }
 
-/// Get cursor position (column, row)
+/// Get cursor position (col, row)
 ///
 /// # Notes
 /// * Top left cell is represented as `0,0`.
@@ -560,7 +560,7 @@ pub extern "C" fn crossterm_cursor_position(col: &mut u16, row: &mut u16) -> lib
   r!()
 }
 
-/// Moves the terminal cursor to the given position (column, row).
+/// Moves the terminal cursor to the given position (col, row).
 ///
 /// # Notes
 /// * Top left cell is represented as `0,0`.
@@ -570,7 +570,7 @@ pub extern "C" fn crossterm_cursor_move_to(x: u16, y: u16) -> libc::c_int {
   r!()
 }
 
-/// Moves the terminal cursor down the given number of lines and moves it to the first column.
+/// Moves the terminal cursor down the given number of lines and moves it to the first col.
 ///
 /// # Notes
 /// * This command is 1 based, meaning `crossterm_cursor_move_to_next_line(1)` moves to the next line.
@@ -581,21 +581,21 @@ pub extern "C" fn crossterm_cursor_move_to_next_line(n: u16) -> libc::c_int {
   r!()
 }
 
-/// Moves the terminal cursor up the given number of lines and moves it to the first column.
+/// Moves the terminal cursor up the given number of lines and moves it to the first col.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_to_previous_line(n: u16) -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::MoveToPreviousLine(n)).c_unwrap();
   r!()
 }
 
-/// Moves the terminal cursor to the given column on the current row.
+/// Moves the terminal cursor to the given col on the current row.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_move_to_column(column: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveToColumn(column)).c_unwrap();
+pub extern "C" fn crossterm_cursor_move_to_column(col: u16) -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::cursor::MoveToColumn(col)).c_unwrap();
   r!()
 }
 
-/// Moves the terminal cursor to the given row on the current column.
+/// Moves the terminal cursor to the given row on the current col.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_to_row(row: u16) -> libc::c_int {
   queue!(std::io::stdout(), crossterm::cursor::MoveToRow(row)).c_unwrap();
@@ -609,10 +609,10 @@ pub extern "C" fn crossterm_cursor_move_up(rows: u16) -> libc::c_int {
   r!()
 }
 
-/// Moves the terminal cursor a given number of columns to the right.
+/// Moves the terminal cursor a given number of cols to the right.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_move_right(columns: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveRight(columns)).c_unwrap();
+pub extern "C" fn crossterm_cursor_move_right(cols: u16) -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::cursor::MoveRight(cols)).c_unwrap();
   r!()
 }
 
@@ -623,10 +623,10 @@ pub extern "C" fn crossterm_cursor_move_down(rows: u16) -> libc::c_int {
   r!()
 }
 
-/// Moves the terminal cursor a given number of columns to the left.
+/// Moves the terminal cursor a given number of cols to the left.
 #[no_mangle]
-pub extern "C" fn crossterm_cursor_move_left(columns: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveLeft(columns)).c_unwrap();
+pub extern "C" fn crossterm_cursor_move_left(cols: u16) -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::cursor::MoveLeft(cols)).c_unwrap();
   r!()
 }
 
@@ -1630,10 +1630,10 @@ pub extern "C" fn crossterm_terminal_size(width: &mut u16, height: &mut u16) -> 
   r!()
 }
 
-/// Sets the terminal buffer size `(columns, rows)`.
+/// Sets the terminal buffer size `(cols, rows)`.
 #[no_mangle]
-pub extern "C" fn crossterm_terminal_size_set(columns: u16, rows: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::SetSize(columns, rows)).c_unwrap();
+pub extern "C" fn crossterm_terminal_size_set(cols: u16, rows: u16) -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::terminal::SetSize(cols, rows)).c_unwrap();
   r!()
 }
 
