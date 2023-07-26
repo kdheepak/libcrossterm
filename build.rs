@@ -1,10 +1,7 @@
 use std::{env, fs::File, io::Read, path::Path};
 
+#[allow(dead_code)]
 fn create_colors() {
-  // Do not update files on docsrs
-  if std::env::var("DOCS_RS").is_ok() {
-    return;
-  }
   let out_dir = env::var("OUT_DIR").unwrap();
   let dest_path = Path::new(&out_dir).join("colors.rs");
   let mut file = File::open("./data/colors.json").expect("Could not open colors.json");
@@ -14,11 +11,8 @@ fn create_colors() {
   std::fs::write(dest_path, format!("pub static COLORS: &str = r##\"{}\"##;", data)).unwrap();
 }
 
+#[allow(dead_code)]
 fn create_crossterm_header() {
-  // Do not update files on docsrs
-  if std::env::var("DOCS_RS").is_ok() {
-    return;
-  }
   let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or(".".to_string());
   if let Ok(bindings) = cbindgen::generate(&crate_dir) {
     bindings.write_to_file(format!("{}/include/crossterm.h", crate_dir));
@@ -26,6 +20,9 @@ fn create_crossterm_header() {
 }
 
 fn main() {
+  #[cfg(not(feature = "docsrs"))]
   create_colors();
+
+  #[cfg(not(feature = "docsrs"))]
   create_crossterm_header();
 }

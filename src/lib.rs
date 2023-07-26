@@ -4,7 +4,11 @@ use bitflags::bitflags;
 use crossterm::{self, queue};
 use log::trace;
 
+#[cfg(not(feature = "docsrs"))]
 include!(concat!(env!("OUT_DIR"), "/colors.rs"));
+
+#[cfg(feature = "docsrs")]
+pub static COLORS: &str = r##"[{"error": "Build with docsrs feature enabled."}]"##;
 
 fn convert_string_to_c_char(string: String) -> *mut libc::c_char {
   // Convert the String to a CString
