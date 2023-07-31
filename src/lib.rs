@@ -1835,6 +1835,13 @@ pub extern "C" fn crossterm_terminal_end_synchronized_update() -> libc::c_int {
   r!()
 }
 
+/// Instructs the terminal to send a bell.
+#[no_mangle]
+pub extern "C" fn crossterm_terminal_ring_bell() -> libc::c_int {
+  queue!(std::io::stdout(), crossterm::style::Print("\x07")).c_unwrap();
+  r!()
+}
+
 /// Flush the stdout stream, ensuring that all intermediately buffered contents reach their destination.
 ///
 /// It is considered an error if not all bytes could be written due to I/O errors or EOF being reached.
