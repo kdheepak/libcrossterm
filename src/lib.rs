@@ -8,7 +8,7 @@ use log::trace;
 include!(concat!(env!("OUT_DIR"), "/colors.rs"));
 
 #[cfg(feature = "docsrs")]
-pub static COLORS: &str = r##"[{"error": "Build with docsrs feature enabled."}]"##;
+pub static COLORS: &str = r##"[{"error": "Feature `docsrs` is enabled. COLORS json not available."}]"##;
 
 fn convert_string_to_c_char(string: String) -> *mut libc::c_char {
   // Convert the String to a CString
