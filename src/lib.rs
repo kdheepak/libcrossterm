@@ -77,6 +77,7 @@ where
         RESULT.with(|r| {
           *r.borrow_mut() = 0;
         });
+        take_last_error();
         t
       },
       Err(err) => {
