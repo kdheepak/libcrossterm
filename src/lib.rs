@@ -6,7 +6,6 @@ use log::trace;
 
 #[cfg(not(feature = "docsrs"))]
 include!(concat!(env!("OUT_DIR"), "/colors.rs"));
-
 #[cfg(feature = "docsrs")]
 pub static COLORS: &str = r##"[{"error": "Feature `docsrs` is enabled. COLORS json not available."}]"##;
 
