@@ -11,7 +11,7 @@ pub static COLORS: &str = r##"[{"error": "Feature `docsrs` is enabled. COLORS js
 
 fn convert_string_to_c_char(string: String) -> *mut libc::c_char {
   // Convert the String to a CString
-  let c_string = match std::ffi::CString::new(string.clone()) {
+  let c_string = match std::ffi::CString::new(string.as_bytes()) {
     Ok(c_string) => c_string,
     Err(_) => {
       set_last_error(anyhow::anyhow!("Unable to convert {} to CString", &string));
