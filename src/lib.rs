@@ -1183,7 +1183,7 @@ pub unsafe extern "C" fn crossterm_style_print_string(s: *const libc::c_char) ->
     set_last_error(anyhow::anyhow!("Received null pointer for print string"));
     return r!();
   };
-  let c_str: &std::ffi::CStr = unsafe { std::ffi::CStr::from_ptr(s) };
+  let c_str: &std::ffi::CStr = std::ffi::CStr::from_ptr(s);
   if let Ok(string) = c_str.to_str() {
     queue!(io!(), crossterm::style::Print(string)).c_unwrap();
     r!()
@@ -1208,7 +1208,7 @@ pub unsafe extern "C" fn crossterm_style_print_string(s: *const libc::c_char) ->
 /// If these conditions are not met, the behavior is undefined.
 #[no_mangle]
 pub unsafe extern "C" fn crossterm_style_print(s: *const libc::c_char) -> libc::c_int {
-  unsafe { crossterm_style_print_string(s) }
+  crossterm_style_print_string(s)
 }
 
 #[repr(C)]
@@ -1806,7 +1806,7 @@ pub unsafe extern "C" fn crossterm_terminal_title(title: *const libc::c_char) ->
     set_last_error(anyhow::anyhow!("Received null pointer for title string"));
     return r!();
   };
-  let c_str: &std::ffi::CStr = unsafe { std::ffi::CStr::from_ptr(title) };
+  let c_str: &std::ffi::CStr = std::ffi::CStr::from_ptr(title);
   if let Ok(string) = c_str.to_str() {
     queue!(io!(), crossterm::terminal::SetTitle(string)).c_unwrap();
     r!()
