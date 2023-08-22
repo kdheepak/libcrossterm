@@ -93,7 +93,7 @@ where
 thread_local! {
   static LAST_ERROR: std::cell::RefCell<Option<anyhow::Error>> = std::cell::RefCell::new(None);
   static RESULT: std::cell::RefCell<libc::c_int> = std::cell::RefCell::new(0);
-  static USE_STDOUT: std::cell::RefCell<bool> = std::cell::RefCell::new(std::env::var("LIBCROSSTERM_OUTPUT").unwrap_or_default() == String::from("stdout"));
+  static USE_STDOUT: std::cell::RefCell<bool> = std::cell::RefCell::new(std::env::var("LIBCROSSTERM_OUTPUT").unwrap_or_default() == "stdout");
 }
 
 macro_rules! r {
