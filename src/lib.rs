@@ -94,11 +94,22 @@ where
 thread_local! {
   static LAST_ERROR: std::cell::RefCell<Option<anyhow::Error>> = std::cell::RefCell::new(None);
   static RESULT: std::cell::RefCell<libc::c_int> = std::cell::RefCell::new(0);
+  static USE_STDOUT: std::cell::RefCell<bool> = std::cell::RefCell::new(std::env::var("LIBCROSSTERM_OUTPUT").unwrap_or_default() == String::from("stdout"));
 }
 
 macro_rules! r {
   () => {
     RESULT.with(|r| r.borrow().clone())
+  };
+}
+
+macro_rules! io {
+  () => {
+    if USE_STDOUT.with(|r| *r.borrow()) {
+      Box::new(std::io::stdout()) as Box<dyn Write>
+    } else {
+      Box::new(std::io::stderr()) as Box<dyn Write>
+    }
   };
 }
 
@@ -536,6 +547,22 @@ pub extern "C" fn crossterm_event_read() -> *const libc::c_char {
   convert_string_to_c_char(string)
 }
 
+/// Use `std::io::stdout()` for all commands
+#[no_mangle]
+pub extern "C" fn crossterm_use_stdout() {
+  USE_STDOUT.with(|io| {
+    *io.borrow_mut() = true;
+  });
+}
+
+/// Use `std::io::stderr()` for all commands
+#[no_mangle]
+pub extern "C" fn crossterm_use_stderr() {
+  USE_STDOUT.with(|io| {
+    *io.borrow_mut() = false;
+  });
+}
+
 /// Sleeps for n seconds where n is the argument to this function
 #[no_mangle]
 pub extern "C" fn crossterm_sleep(seconds: f64) {
@@ -549,7 +576,7 @@ pub extern "C" fn crossterm_sleep(seconds: f64) {
 /// * Top left cell is represented as `0,0`.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_position_set(col: u16, row: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveTo(col, row)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveTo(col, row)).c_unwrap();
   r!()
 }
 
@@ -571,7 +598,7 @@ pub extern "C" fn crossterm_cursor_position(col: &mut u16, row: &mut u16) -> lib
 /// * Top left cell is represented as `0,0`.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_to(col: u16, row: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveTo(col, row)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveTo(col, row)).c_unwrap();
   r!()
 }
 
@@ -582,98 +609,98 @@ pub extern "C" fn crossterm_cursor_move_to(col: u16, row: u16) -> libc::c_int {
 /// * Most terminals default 0 argument to 1.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_to_next_line(n: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveToNextLine(n)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveToNextLine(n)).c_unwrap();
   r!()
 }
 
 /// Moves the terminal cursor up the given number of lines and moves it to the first col.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_to_previous_line(n: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveToPreviousLine(n)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveToPreviousLine(n)).c_unwrap();
   r!()
 }
 
 /// Moves the terminal cursor to the given col on the current row.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_to_column(col: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveToColumn(col)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveToColumn(col)).c_unwrap();
   r!()
 }
 
 /// Moves the terminal cursor to the given row on the current col.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_to_row(row: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveToRow(row)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveToRow(row)).c_unwrap();
   r!()
 }
 
 /// Moves the terminal cursor a given number of rows up.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_up(rows: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveUp(rows)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveUp(rows)).c_unwrap();
   r!()
 }
 
 /// Moves the terminal cursor a given number of cols to the right.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_right(cols: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveRight(cols)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveRight(cols)).c_unwrap();
   r!()
 }
 
 /// Moves the terminal cursor a given number of rows down.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_down(rows: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveDown(rows)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveDown(rows)).c_unwrap();
   r!()
 }
 
 /// Moves the terminal cursor a given number of cols to the left.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_move_left(cols: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::MoveLeft(cols)).c_unwrap();
+  queue!(io!(), crossterm::cursor::MoveLeft(cols)).c_unwrap();
   r!()
 }
 
 /// Saves the current terminal cursor position.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_save_position() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::SavePosition).c_unwrap();
+  queue!(io!(), crossterm::cursor::SavePosition).c_unwrap();
   r!()
 }
 
 /// Restores the saved terminal cursor position.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_restore_position() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::RestorePosition).c_unwrap();
+  queue!(io!(), crossterm::cursor::RestorePosition).c_unwrap();
   r!()
 }
 
 /// Hides the terminal cursor.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_hide() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::Hide).c_unwrap();
+  queue!(io!(), crossterm::cursor::Hide).c_unwrap();
   r!()
 }
 
 /// Shows the terminal cursor.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_show() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::Show).c_unwrap();
+  queue!(io!(), crossterm::cursor::Show).c_unwrap();
   r!()
 }
 
 /// Enables blinking of the terminal cursor.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_enable_blinking() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::EnableBlinking).c_unwrap();
+  queue!(io!(), crossterm::cursor::EnableBlinking).c_unwrap();
   r!()
 }
 
 /// Disables blinking of the terminal cursor.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_disable_blinking() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::DisableBlinking).c_unwrap();
+  queue!(io!(), crossterm::cursor::DisableBlinking).c_unwrap();
   r!()
 }
 
@@ -710,70 +737,70 @@ pub extern "C" fn crossterm_cursor_style(cursor_style: CursorStyle) -> libc::c_i
     CursorStyle::BlinkingBar => crossterm::cursor::SetCursorStyle::BlinkingBar,
     CursorStyle::SteadyBar => crossterm::cursor::SetCursorStyle::SteadyBar,
   };
-  queue!(std::io::stdout(), cs).c_unwrap();
+  queue!(io!(), cs).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to default user shape.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_style_default_user_shape() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::DefaultUserShape).c_unwrap();
+  queue!(io!(), crossterm::cursor::SetCursorStyle::DefaultUserShape).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a blinking block.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_style_blinking_block() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::BlinkingBlock).c_unwrap();
+  queue!(io!(), crossterm::cursor::SetCursorStyle::BlinkingBlock).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a steady block.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_style_steady_block() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::SteadyBlock).c_unwrap();
+  queue!(io!(), crossterm::cursor::SetCursorStyle::SteadyBlock).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a blinking underscore.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_style_blinking_underscore() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::BlinkingUnderScore).c_unwrap();
+  queue!(io!(), crossterm::cursor::SetCursorStyle::BlinkingUnderScore).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a steady underscore.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_style_steady_underscore() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::SteadyUnderScore).c_unwrap();
+  queue!(io!(), crossterm::cursor::SetCursorStyle::SteadyUnderScore).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a blinking bar.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_style_blinking_bar() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::BlinkingBar).c_unwrap();
+  queue!(io!(), crossterm::cursor::SetCursorStyle::BlinkingBar).c_unwrap();
   r!()
 }
 
 /// Sets the style of the cursor to a steady bar.
 #[no_mangle]
 pub extern "C" fn crossterm_cursor_style_steady_bar() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::cursor::SetCursorStyle::SteadyBar).c_unwrap();
+  queue!(io!(), crossterm::cursor::SetCursorStyle::SteadyBar).c_unwrap();
   r!()
 }
 
 /// Enable mouse event capturing.
 #[no_mangle]
 pub extern "C" fn crossterm_event_enable_mouse_capture() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::event::EnableMouseCapture).c_unwrap();
+  queue!(io!(), crossterm::event::EnableMouseCapture).c_unwrap();
   r!()
 }
 
 /// Disable mouse event capturing.
 #[no_mangle]
 pub extern "C" fn crossterm_event_disable_mouse_capture() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::event::DisableMouseCapture).c_unwrap();
+  queue!(io!(), crossterm::event::DisableMouseCapture).c_unwrap();
   r!()
 }
 
@@ -805,14 +832,14 @@ pub enum KeyboardEnhancementFlags {
 #[no_mangle]
 pub extern "C" fn crossterm_event_push_keyboard_enhancement_flags(flags: u8) -> libc::c_int {
   let flags = crossterm::event::KeyboardEnhancementFlags::from_bits(flags).unwrap();
-  queue!(std::io::stdout(), crossterm::event::PushKeyboardEnhancementFlags(flags)).c_unwrap();
+  queue!(io!(), crossterm::event::PushKeyboardEnhancementFlags(flags)).c_unwrap();
   r!()
 }
 
 /// Disables extra kinds of keyboard events.
 #[no_mangle]
 pub extern "C" fn crossterm_event_pop_keyboard_enhancement_flags() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::event::PopKeyboardEnhancementFlags).c_unwrap();
+  queue!(io!(), crossterm::event::PopKeyboardEnhancementFlags).c_unwrap();
   r!()
 }
 
@@ -823,14 +850,14 @@ pub extern "C" fn crossterm_event_pop_keyboard_enhancement_flags() -> libc::c_in
 /// Focus events can be captured with [`crossterm_event_read`].
 #[no_mangle]
 pub extern "C" fn crossterm_event_enable_focus_change() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::event::EnableFocusChange).c_unwrap();
+  queue!(io!(), crossterm::event::EnableFocusChange).c_unwrap();
   r!()
 }
 
 /// Disable focus event emission.
 #[no_mangle]
 pub extern "C" fn crossterm_event_disable_focus_change() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::event::DisableFocusChange).c_unwrap();
+  queue!(io!(), crossterm::event::DisableFocusChange).c_unwrap();
   r!()
 }
 
@@ -842,14 +869,14 @@ pub extern "C" fn crossterm_event_disable_focus_change() -> libc::c_int {
 /// [virtual terminal sequences](https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences).
 #[no_mangle]
 pub extern "C" fn crossterm_event_enable_bracketed_paste() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::event::EnableBracketedPaste).c_unwrap();
+  queue!(io!(), crossterm::event::EnableBracketedPaste).c_unwrap();
   r!()
 }
 
 /// Disables bracketed paste mode.
 #[no_mangle]
 pub extern "C" fn crossterm_event_disable_bracketed_paste() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::event::DisableBracketedPaste).c_unwrap();
+  queue!(io!(), crossterm::event::DisableBracketedPaste).c_unwrap();
   r!()
 }
 
@@ -960,168 +987,168 @@ pub struct Attributes(u32);
 /// See [`Attribute`] for more info.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute(attr: Attribute) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(attr.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(attr.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Reset` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_reset() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Reset.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Reset.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Bold` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_bold() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Bold.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Bold.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Dim` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_dim() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Dim.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Dim.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Italic` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_italic() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Italic.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Italic.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Underlined` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_underlined() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Underlined.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Underlined.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `DoubleUnderlined` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_double_underlined() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::DoubleUnderlined.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::DoubleUnderlined.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Undercurled` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_undercurled() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Undercurled.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Undercurled.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Underdotted` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_underdotted() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Underdotted.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Underdotted.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Underdashed` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_underdashed() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Underdashed.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Underdashed.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `SlowBlink` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_slow_blink() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::SlowBlink.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::SlowBlink.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `RapidBlink` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_rapid_blink() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::RapidBlink.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::RapidBlink.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Reverse` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_reverse() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Reverse.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Reverse.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Hidden` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_hidden() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Hidden.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Hidden.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `CrossedOut` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_crossed_out() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::CrossedOut.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::CrossedOut.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `Fraktur` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_fraktur() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::Fraktur.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::Fraktur.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `NoBold` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_no_bold() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoBold.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::NoBold.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `NormalIntensity` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_normal_intensity() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NormalIntensity.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::NormalIntensity.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `NoItalic` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_no_italic() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoItalic.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::NoItalic.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `NoUnderline` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_no_underline() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoUnderline.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::NoUnderline.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `NoBlink` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_no_blink() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoBlink.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::NoBlink.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `NoReverse` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_no_reverse() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoReverse.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::NoReverse.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `NoHidden` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_no_hidden() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NoHidden.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::NoHidden.into())).c_unwrap();
   r!()
 }
 
 /// Sets the `NotCrossedOut` attribute.
 #[no_mangle]
 pub extern "C" fn crossterm_style_attribute_not_crossed_out() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetAttribute(Attribute::NotCrossedOut.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetAttribute(Attribute::NotCrossedOut.into())).c_unwrap();
   r!()
 }
 
@@ -1129,7 +1156,7 @@ pub extern "C" fn crossterm_style_attribute_not_crossed_out() -> libc::c_int {
 #[no_mangle]
 pub extern "C" fn crossterm_style_print_char(c: u32) -> libc::c_int {
   if let Some(ch) = std::char::from_u32(c) {
-    queue!(std::io::stdout(), crossterm::style::Print(ch)).c_unwrap();
+    queue!(io!(), crossterm::style::Print(ch)).c_unwrap();
     r!()
   } else {
     set_last_error(anyhow::anyhow!("Unable to convert {} to valid char", c));
@@ -1158,7 +1185,7 @@ pub unsafe extern "C" fn crossterm_style_print_string(s: *const libc::c_char) ->
   };
   let c_str: &std::ffi::CStr = unsafe { std::ffi::CStr::from_ptr(s) };
   if let Ok(string) = c_str.to_str() {
-    queue!(std::io::stdout(), crossterm::style::Print(string)).c_unwrap();
+    queue!(io!(), crossterm::style::Print(string)).c_unwrap();
     r!()
   } else {
     RESULT.with(|r| {
@@ -1262,7 +1289,7 @@ impl From<Color> for crossterm::style::Color {
 /// See [`Color`] for more info.
 #[no_mangle]
 pub extern "C" fn crossterm_style_background_color(color: Color) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetBackgroundColor(color.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetBackgroundColor(color.into())).c_unwrap();
   r!()
 }
 
@@ -1385,7 +1412,7 @@ pub extern "C" fn crossterm_style_background_color_grey() -> libc::c_int {
 /// See [`Color`] for more info.
 #[no_mangle]
 pub extern "C" fn crossterm_style_foreground_color(color: Color) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetForegroundColor(color.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetForegroundColor(color.into())).c_unwrap();
   r!()
 }
 
@@ -1508,7 +1535,7 @@ pub extern "C" fn crossterm_style_foreground_color_grey() -> libc::c_int {
 /// See [`Color`] for more info.
 #[no_mangle]
 pub extern "C" fn crossterm_style_underline_color(color: Color) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::SetUnderlineColor(color.into())).c_unwrap();
+  queue!(io!(), crossterm::style::SetUnderlineColor(color.into())).c_unwrap();
   r!()
 }
 
@@ -1629,7 +1656,7 @@ pub extern "C" fn crossterm_style_underline_color_grey() -> libc::c_int {
 /// Resets the colors back to default.
 #[no_mangle]
 pub extern "C" fn crossterm_style_reset_color() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::ResetColor).c_unwrap();
+  queue!(io!(), crossterm::style::ResetColor).c_unwrap();
   r!()
 }
 
@@ -1677,35 +1704,35 @@ pub extern "C" fn crossterm_terminal_size(width: &mut u16, height: &mut u16) -> 
 /// Sets the terminal buffer size `(cols, rows)`.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_size_set(cols: u16, rows: u16) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::SetSize(cols, rows)).c_unwrap();
+  queue!(io!(), crossterm::terminal::SetSize(cols, rows)).c_unwrap();
   r!()
 }
 
 /// Disables line wrapping.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_disable_line_wrap() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::DisableLineWrap).c_unwrap();
+  queue!(io!(), crossterm::terminal::DisableLineWrap).c_unwrap();
   r!()
 }
 
 /// Enables line wrapping.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_enable_line_wrap() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::EnableLineWrap).c_unwrap();
+  queue!(io!(), crossterm::terminal::EnableLineWrap).c_unwrap();
   r!()
 }
 
 /// Enters alternate screen.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_enter_alternate_screen() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen).c_unwrap();
+  queue!(io!(), crossterm::terminal::EnterAlternateScreen).c_unwrap();
   r!()
 }
 
 /// Leaves alternate screen.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_leave_alternate_screen() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen).c_unwrap();
+  queue!(io!(), crossterm::terminal::LeaveAlternateScreen).c_unwrap();
   r!()
 }
 
@@ -1742,21 +1769,21 @@ impl From<ClearType> for crossterm::terminal::ClearType {
 /// Scroll up command.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_scroll_up(n: libc::c_ushort) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::ScrollUp(n)).c_unwrap();
+  queue!(io!(), crossterm::terminal::ScrollUp(n)).c_unwrap();
   r!()
 }
 
 /// Scroll down command.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_scroll_down(n: libc::c_ushort) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::ScrollDown(n)).c_unwrap();
+  queue!(io!(), crossterm::terminal::ScrollDown(n)).c_unwrap();
   r!()
 }
 
 /// Clear screen command.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_clear(ct: ClearType) -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::Clear(ct.into())).c_unwrap();
+  queue!(io!(), crossterm::terminal::Clear(ct.into())).c_unwrap();
   r!()
 }
 
@@ -1781,7 +1808,7 @@ pub unsafe extern "C" fn crossterm_terminal_title(title: *const libc::c_char) ->
   };
   let c_str: &std::ffi::CStr = unsafe { std::ffi::CStr::from_ptr(title) };
   if let Ok(string) = c_str.to_str() {
-    queue!(std::io::stdout(), crossterm::terminal::SetTitle(string)).c_unwrap();
+    queue!(io!(), crossterm::terminal::SetTitle(string)).c_unwrap();
     r!()
   } else {
     RESULT.with(|r| {
@@ -1810,7 +1837,7 @@ pub unsafe extern "C" fn crossterm_terminal_title(title: *const libc::c_char) ->
 /// by unintentionally rendering in the middle a of an application screen update.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_begin_synchronized_update() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::BeginSynchronizedUpdate).c_unwrap();
+  queue!(io!(), crossterm::terminal::BeginSynchronizedUpdate).c_unwrap();
   r!()
 }
 
@@ -1832,14 +1859,14 @@ pub extern "C" fn crossterm_terminal_begin_synchronized_update() -> libc::c_int 
 /// by unintentionally rendering in the middle a of an application screen update.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_end_synchronized_update() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::terminal::EndSynchronizedUpdate).c_unwrap();
+  queue!(io!(), crossterm::terminal::EndSynchronizedUpdate).c_unwrap();
   r!()
 }
 
 /// Instructs the terminal to send a bell.
 #[no_mangle]
 pub extern "C" fn crossterm_terminal_ring_bell() -> libc::c_int {
-  queue!(std::io::stdout(), crossterm::style::Print("\x07")).c_unwrap();
+  queue!(io!(), crossterm::style::Print("\x07")).c_unwrap();
   r!()
 }
 
@@ -1848,7 +1875,7 @@ pub extern "C" fn crossterm_terminal_ring_bell() -> libc::c_int {
 /// It is considered an error if not all bytes could be written due to I/O errors or EOF being reached.
 #[no_mangle]
 pub extern "C" fn crossterm_flush() -> libc::c_int {
-  if let Err(err) = std::io::stdout().flush() {
+  if let Err(err) = io!().flush() {
     set_last_error(anyhow::anyhow!(err))
   }
   r!()
